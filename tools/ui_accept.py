@@ -73,7 +73,19 @@ end tell'''
     raise SystemExit("could not find the draft card on the home screen")
 
 
+def dismiss_dialogs() -> None:
+    """Close JianYing's modal prompts (e.g. 链接媒体 for missing files) with Esc."""
+    for _ in range(3):
+        names = osa(f'tell application "System Events" to tell process "{PROC}" to get name of every window')
+        if "链接媒体" not in names:
+            return
+        osa(f'tell application "System Events" to tell process "{PROC}" to set frontmost to true')
+        osa('tell application "System Events" to key code 53')
+        time.sleep(1.5)
+
+
 def quit_app() -> bool:
+    dismiss_dialogs()
     # The menu click blocks while JianYing runs its exit flow, so fire and forget.
     subprocess.Popen(["osascript", "-e", f'tell application "System Events" to tell process "{PROC}" to '
                       'click menu item "退出" of menu 1 of menu bar item 2 of menu bar 1'])
@@ -95,17 +107,22 @@ APP_ADDS = {"loudnesses", "beats", "time_marks", "material_animations"}
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("build")
+    ap.add_argument("build", nargs="?", help="built draft folder to publish and test")
     ap.add_argument("--name")
+    ap.add_argument("--existing", help="test a draft already on the home screen (e.g. one made by `jyr edit`)")
     a = ap.parse_args()
     rt = runtime.detect()
     if runtime.jianying_running():
         print("quit JianYing first", file=sys.stderr)
         return 2
-    built = Path(a.build).resolve()
-    name = a.name or f"jyr验收-{built.name}-{time.strftime('%H%M%S')}"
-    pub = home.publish(rt, built, name)
-    folder = Path(pub["folder"])
+    if a.existing:
+        from jyr import reader
+        folder = reader.resolve(rt, a.existing)
+    else:
+        built = Path(a.build).resolve()
+        name = a.name or f"jyr验收-{built.name}-{time.strftime('%H%M%S')}"
+        folder = Path(home.publish(rt, built, name)["folder"])
+    before = json.loads(crypto.decrypt_bytes(rt, (folder / "draft_info.json").read_bytes()))
     report = {"draft": folder.name, "steps": {}}
 
     subprocess.run(["open", "-a", str(rt.app_path)])
@@ -131,7 +148,7 @@ def main() -> int:
     time.sleep(8)  # let autosave run
     report["steps"]["quit_cleanly"] = quit_app()
 
-    ours = summary(json.loads(crypto.decrypt_bytes(rt, (built / "draft_info.json").read_bytes())))
+    ours = summary(before)
     saved_raw = json.loads(crypto.decrypt_bytes(rt, (folder / "draft_info.json").read_bytes()))
     saved = summary(saved_raw)
     diffs = []
