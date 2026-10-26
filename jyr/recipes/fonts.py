@@ -13,8 +13,8 @@ STYLE_HINTS = {
     "title": ["黑", "粗", "综艺", "标题", "新青年", "庞门", "优设", "站酷", "锐", "Bold", "Heavy", "Black"],
     "subtitle": ["黑", "圆", "苹方", "思源", "本黑", "PingFang", "Sans", "Hei", "system", "zh-hans"],
     "body": ["宋", "明", "书", "思源", "Song", "Serif"],
-    "handwriting": ["手写", "行书", "楷", "笔", "草", "Kai", "Brush"],
-    "cute": ["圆", "可爱", "萌", "童", "卡通", "Round"],
+    "handwriting": ["手写", "手书", "行书", "楷", "毛笔", "草书", "书法", "Kaiti", "Xingkai"],
+    "cute": ["圆", "可爱", "萌", "童", "卡通", "Yuanti", "Round"],
 }
 
 
@@ -33,7 +33,12 @@ def candidates(cat: Catalog, role: str) -> list[dict]:
         if style or habit:
             scored.append((score, e))
     scored.sort(key=lambda x: -x[0])
-    return [e for _, e in scored]
+    seen, out = set(), []
+    for _, e in scored:
+        if e["name"] not in seen:  # same font cached twice: keep the better-scored copy
+            seen.add(e["name"])
+            out.append(e)
+    return out
 
 
 def pick(cat: Catalog, role: str) -> dict:

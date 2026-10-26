@@ -85,6 +85,12 @@ class Draft:
         same = [t for t in self.tracks if t.kind == track.kind]
         return same.index(track)
 
+    def snap(self, start: int, duration: int) -> tuple[int, int]:
+        """JianYing puts every clip edge on the frame grid; so do we, so drafts round-trip exactly."""
+        a = self.frames_us(round(start * self.fps / 1_000_000))
+        b = self.frames_us(round((start + duration) * self.fps / 1_000_000))
+        return a, max(b - a, self.frames_us(1))
+
     def _base_segment(self, track: Track, start: int, duration: int) -> dict:
         idx = self._track_index(track)
         seg = {
@@ -140,7 +146,7 @@ class Draft:
                    "beauty_face_auto_preset": {},
                    "video_mask_stroke": {"resource_id": "", "path": "", "type": ""},
                    "video_mask_shadow": {"resource_id": "", "path": ""}}
-            if info.kind == "photo" or not info.has_audio:
+            if info.kind in ("photo", "gif") or not info.has_audio:
                 mat["has_audio"] = False
             self._mat("videos", mat)
         if not known:
@@ -153,19 +159,21 @@ class Draft:
                   speed: float = 1.0, volume: float = 1.0, transform: dict | None = None,
                   reverse: bool = False) -> dict:
         info = probe(path)
+        start, duration = self.snap(start, duration)
         if track.kind == "video" and info.kind == "audio":
             raise JyrError(f"{path} has no picture; put it on an audio track")
-        if track.kind == "audio" and info.kind == "photo":
+        still = info.kind in ("photo", "gif")
+        if track.kind == "audio" and still:
             raise JyrError(f"{path} is an image; put it on a video track")
         if not 0.1 <= speed <= 100:
             raise JyrError(f"speed {speed} out of range 0.1–100")
         if duration <= 0:
             raise JyrError(f"{Path(path).name}: duration must be > 0")
         src_dur = int(round(duration * speed))
-        if info.kind != "photo" and source_start + src_dur > info.duration_us + 1000:
+        if not still and source_start + src_dur > info.duration_us + 1000:
             raise JyrError(f"{Path(path).name}: needs {(source_start + src_dur) / 1e6:.3f}s of source but "
                            f"the file is {info.duration_us / 1e6:.3f}s")
-        src_dur = min(src_dur, info.duration_us - source_start) if info.kind != "photo" else src_dur
+        src_dur = src_dur if still else min(src_dur, info.duration_us - source_start)
         mat = self._media_material(info)
         seg = self._base_segment(track, start, duration)
         seg["material_id"] = mat["id"]
@@ -306,6 +314,7 @@ class Draft:
                  italic: bool = False, align: int = 1, background: str | None = None,
                  line_spacing: float = 0.02, letter_spacing: float = 0.0, transform: dict | None = None,
                  subtitle: bool = False, words: dict | None = None) -> dict:
+        start, duration = self.snap(start, duration)
         if not text:
             raise JyrError("text clip needs non-empty text")
         style = {"fill": {"alpha": 1.0, "content": {"render_type": "solid",
@@ -357,6 +366,7 @@ class Draft:
 
     # ---------- effect / filter tracks ----------
     def add_track_effect(self, track: Track, res: dict, start: int, duration: int) -> dict:
+        start, duration = self.snap(start, duration)
         m = copy.deepcopy(res["template"])
         if track.kind == "filter":
             m.update({"type": "filter", "value": 1.0})
@@ -370,6 +380,7 @@ class Draft:
         return seg
 
     def add_sticker(self, track: Track, res: dict, start: int, duration: int, transform: dict | None = None) -> dict:
+        start, duration = self.snap(start, duration)
         m = copy.deepcopy(res["template"])
         m["type"] = "sticker"
         mid = self._mat("stickers", m)

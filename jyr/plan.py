@@ -103,7 +103,7 @@ class Compiler:
                 dur = us(cp["duration"])
             elif "out" in cp:
                 dur = int(round((us(cp["out"]) - src_in) / speed))
-            elif info.kind == "photo":
+            elif info.kind in ("photo", "gif"):
                 dur = us(3)
             else:
                 dur = int((info.duration_us - src_in) / speed)

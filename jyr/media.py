@@ -19,7 +19,7 @@ STILL_DURATION_US = 10_800_000_000
 @dataclass(frozen=True)
 class MediaInfo:
     path: str
-    kind: str  # "video" | "photo" | "audio"
+    kind: str  # "video" | "photo" | "gif" | "audio"
     duration_us: int
     width: int
     height: int
@@ -46,6 +46,9 @@ def probe(path: str) -> MediaInfo:
     video = next((s for s in streams if s.get("codec_type") == "video"), None)
     audio = next((s for s in streams if s.get("codec_type") == "audio"), None)
     ext = p.suffix.lower()
+    if ext == ".gif" and video is not None:
+        # JianYing keeps GIFs as their own kind and loops them like a still.
+        return MediaInfo(str(p), "gif", STILL_DURATION_US, int(video.get("width", 0)), int(video.get("height", 0)), False)
     if video is not None and (ext in IMAGE_EXT and ext != ".gif" or video.get("disposition", {}).get("attached_pic")):
         if audio is None or ext in IMAGE_EXT:
             return MediaInfo(str(p), "photo", STILL_DURATION_US, int(video.get("width", 0)), int(video.get("height", 0)), False)

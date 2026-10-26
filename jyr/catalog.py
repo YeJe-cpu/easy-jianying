@@ -101,6 +101,22 @@ def _harvest(draft: dict, out: dict[tuple, dict]) -> None:
             add(e)
 
 
+def _has_cjk(path: Path) -> bool | None:
+    """Does the font cover common Chinese? None if fontTools isn't installed."""
+    try:
+        import logging
+        from fontTools.ttLib import TTFont
+        logging.getLogger("fontTools").setLevel(logging.ERROR)
+    except ImportError:
+        return None
+    try:
+        f = TTFont(str(path), fontNumber=0, lazy=True)
+        cmap = f.getBestCmap() or {}
+        return all(ord(c) in cmap for c in "中文字幕")
+    except Exception:
+        return False
+
+
 def _local_fonts(rt: Runtime) -> list[dict]:
     fonts = []
     builtin = rt.app_path / "Contents/Resources/Font"
@@ -109,6 +125,9 @@ def _local_fonts(rt: Runtime) -> list[dict]:
             continue
         for p in sorted(base.rglob("*")):
             if p.suffix.lower() in FONT_EXT:
+                cjk = True if cat == "内置字体" else _has_cjk(p)
+                if cjk is False:
+                    continue  # a Latin-only font is no use for Chinese titles or subtitles
                 fonts.append({"kind": "font", "name": p.stem, "resource_id": "", "path": str(p),
                               "category": cat, "template": {}, "seen": 0, "slot": str(p)})
     return fonts

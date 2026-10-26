@@ -19,7 +19,7 @@ def _meta(draft: Draft, folder: Path, draft_id: str, created: int) -> dict:
     mats = []
     for m in draft.local_media:
         info = m["info"]
-        kind = {"video": "video", "photo": "photo", "audio": "music"}[info.kind]
+        kind = {"video": "video", "photo": "photo", "gif": "photo", "audio": "music"}[info.kind]
         mats.append({"ai_group_type": "", "create_time": created // 1_000_000, "duration": info.duration_us if kind != "photo" else 5_000_000,
                      "enter_from": 0, "extra_info": Path(info.path).name, "file_Path": info.path,
                      "height": info.height, "width": info.width, "id": m["id"],
