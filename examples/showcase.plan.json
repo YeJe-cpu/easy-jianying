@@ -1,0 +1,176 @@
+{
+ "name": "jyr-showcase",
+ "canvas": "16:9",
+ "fps": 30,
+ "tracks": [
+  {
+   "type": "video",
+   "name": "主轨",
+   "clips": [
+    {
+     "src": "media/clip_a.mp4",
+     "in": 0,
+     "duration": 4,
+     "transition": {
+      "name": "叠化",
+      "duration": 0.5
+     }
+    },
+    {
+     "src": "media/clip_b.mp4",
+     "in": 2,
+     "duration": 3,
+     "speed": 1.5,
+     "transition": "推近"
+    },
+    {
+     "src": "media/clip_a.mp4",
+     "in": 6,
+     "duration": 4,
+     "keyframes": {
+      "scale": [
+       [
+        0,
+        1.0
+       ],
+       [
+        4,
+        1.3
+       ]
+      ]
+     },
+     "fade": {
+      "out": 1
+     }
+    }
+   ]
+  },
+  {
+   "type": "video",
+   "name": "画中画",
+   "clips": [
+    {
+     "src": "media/card.png",
+     "start": 1,
+     "duration": 3,
+     "transform": {
+      "x": 0.55,
+      "y": 0.45,
+      "scale": 0.35
+     },
+     "mask": {
+      "shape": "circle",
+      "width": 0.8,
+      "height": 0.8,
+      "feather": 0.05
+     },
+     "anim": {
+      "in": "放大"
+     }
+    },
+    {
+     "src": "media/portrait.mp4",
+     "start": 6,
+     "duration": 4,
+     "transform": {
+      "x": -0.6,
+      "scale": 0.4
+     },
+     "volume": 0,
+     "keyframes": {
+      "x": [
+       [
+        0,
+        -0.6
+       ],
+       [
+        4,
+        -0.3
+       ]
+      ],
+      "opacity": [
+       [
+        0,
+        0.2
+       ],
+       [
+        1,
+        1.0
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "type": "text",
+   "name": "标题",
+   "clips": [
+    {
+     "text": "jyr · 代码生成剪映草稿",
+     "start": 0.5,
+     "duration": 3,
+     "transform": {
+      "y": 0.6
+     },
+     "style": {
+      "size": 12,
+      "color": "#FFD400",
+      "font": "新青年体",
+      "stroke": {
+       "color": "#000000",
+       "width": 0.1
+      }
+     },
+     "anim": {
+      "in": "打字机 I",
+      "out": "闭幕"
+     }
+    }
+   ]
+  },
+  {
+   "type": "subtitle",
+   "clips": [
+    {
+     "text": "第一句字幕",
+     "start": 0,
+     "duration": 2
+    },
+    {
+     "text": "第二句字幕",
+     "duration": 2.5
+    },
+    {
+     "text": "第三句字幕",
+     "duration": 3
+    }
+   ]
+  },
+  {
+   "type": "effect",
+   "clips": [
+    {
+     "name": "模糊",
+     "start": 7.5,
+     "duration": 1.5
+    }
+   ]
+  },
+  {
+   "type": "audio",
+   "name": "BGM",
+   "clips": [
+    {
+     "src": "media/bgm.mp3",
+     "duration": 10.5,
+     "volume": 0.6,
+     "fade": {
+      "in": 1,
+      "out": 2
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -129,15 +129,44 @@ def start_new_project(rt: Runtime) -> bool:
     return False
 
 
+def _press(rt_free_name: str) -> bool:
+    """Click a named button wherever it is, if it is on screen."""
+    script = f'''tell application "System Events" to tell process "{PROC}"
+  repeat with w in windows
+    try
+      set t to (first UI element of w whose name is "{rt_free_name}")
+      set p to position of t
+      set s to size of t
+      return {{(item 1 of p) + (item 1 of s) / 2, (item 2 of p) + (item 2 of s) / 2}}
+    end try
+  end repeat
+end tell'''
+    pos = osa(script)
+    if not pos:
+        return False
+    x, y = (float(v) for v in pos.replace(" ", "").split(",")[:2])
+    click(x, y)
+    time.sleep(1.5)
+    return True
+
+
 def dismiss_dialogs() -> None:
-    """Close modal prompts such as 链接媒体 (missing files) with Esc."""
+    """Close modal prompts: 链接媒体 (missing files) with Esc, an open export dialog
+    with 取消, the after-export share panel with 关闭."""
     for _ in range(3):
         names = osa(f'tell application "System Events" to tell process "{PROC}" to get name of every window')
-        if "链接媒体" not in names:
-            return
-        osa(f'tell application "System Events" to tell process "{PROC}" to set frontmost to true')
-        osa('tell application "System Events" to key code 53')
-        time.sleep(1.5)
+        if "链接媒体" in names:
+            osa(f'tell application "System Events" to tell process "{PROC}" to set frontmost to true')
+            osa('tell application "System Events" to key code 53')
+            time.sleep(1.5)
+            continue
+        if "导出-" in names:
+            ax = ax_names()
+            if "automationcloseBtn" in ax and _press("automationcloseBtn"):
+                continue
+            if "automationcancel" in ax and _press("automationcancel"):
+                continue
+        return
 
 
 def quit_app() -> bool:

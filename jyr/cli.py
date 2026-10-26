@@ -62,7 +62,7 @@ def cmd_build(a) -> int:
     rt = runtime.detect()
     runtime.require_known(rt)
     p = planmod.load(a.plan)
-    comp = planmod.Compiler(rt)
+    comp = planmod.Compiler(rt, base_dir=Path(a.plan).resolve().parent)
     d = comp.compile(p)
     out = Path(a.out).expanduser().resolve()
     writer.write(rt, d, out, pack=a.pack or bool(p.get("pack_media")), overwrite=a.force)

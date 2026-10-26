@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jyr"
+version = "0.1.0"
+description = "Write JianYing (剪映) desktop drafts from code on macOS — for agents and scripts."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+asr = ["faster-whisper>=1.0", "opencc-python-reimplemented"]
+fonts = ["fonttools>=4.40"]
+
+[project.scripts]
+jyr = "jyr.cli:main"
+
+[tool.setuptools]
+packages = ["jyr", "jyr.recipes"]
+
+[tool.setuptools.package-data]
+jyr = ["jyr_crypt.cpp"]

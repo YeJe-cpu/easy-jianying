@@ -204,7 +204,19 @@ def cmd_fonts(a) -> int:
     return 0
 
 
+def cmd_export(a) -> int:
+    from .export import export
+    results = [export(d, a.out, quit_after=(i == len(a.drafts) - 1)) for i, d in enumerate(a.drafts)]
+    _print(results if len(results) > 1 else results[0])
+    return 0
+
+
 def register(sub) -> None:
+    p = sub.add_parser("export", help="render drafts to video with JianYing itself (drives its UI)")
+    p.add_argument("drafts", nargs="+")
+    p.add_argument("--out", help="file (.mp4/.mov) or folder; default: JianYing's export folder")
+    p.set_defaults(fn=cmd_export)
+
     def media_args(p):
         p.add_argument("media", help="video or audio file (absolute path)")
         p.add_argument("--words", help="use words JSON from another ASR instead of local whisper")

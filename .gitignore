@@ -2,5 +2,6 @@ __pycache__/
 *.pyc
 .jyr-build/
 /work/
+examples/media/
 *.egg-info/
 .DS_Store

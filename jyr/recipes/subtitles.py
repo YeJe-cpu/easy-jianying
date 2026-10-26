@@ -25,7 +25,7 @@ def cues_from_words(words: list[dict], max_chars: int = 16, max_dur: float = 4.0
 
     for w in words:
         if cur:
-            length = len("".join(x["text"] for x in cur) + w["text"])
+            length = len(strip_punct("".join(x["text"] for x in cur) + w["text"]))
             if w["start"] - cur[-1]["end"] > gap or length > max_chars or w["end"] - cur[0]["start"] > max_dur:
                 flush()
         cur.append(w)

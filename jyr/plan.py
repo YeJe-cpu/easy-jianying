@@ -45,8 +45,9 @@ def _canvas(plan: dict) -> tuple[int, int, float]:
 
 
 class Compiler:
-    def __init__(self, rt: Runtime, catalog: Catalog | None = None):
+    def __init__(self, rt: Runtime, catalog: Catalog | None = None, base_dir: str | Path | None = None):
         self.rt = rt
+        self.base_dir = Path(base_dir).resolve() if base_dir else None
         self._catalog = catalog
         self.warnings: list[str] = []
 
@@ -95,7 +96,10 @@ class Compiler:
         if kind in ("video", "audio"):
             src = cp.get("src")
             if not src:
-                raise JyrError("missing `src` (absolute path)")
+                raise JyrError("missing `src`")
+            src = str(Path(src).expanduser())
+            if not Path(src).is_absolute():
+                src = str((self.base_dir or Path.cwd()) / src)  # relative to the plan file
             info = probe(src)
             speed = float(cp.get("speed", 1.0))
             src_in = us(cp.get("in", 0))
@@ -125,9 +129,13 @@ class Compiler:
         if kind in ("text", "subtitle"):
             dur = us(cp.get("duration", 2))
             st = cp.get("style", {})
+            if kind == "subtitle":
+                # readable on any background unless the plan says otherwise
+                st = {"size": 6, "stroke": {"color": "#000000", "width": 0.08}, **st}
             font_path = font_id = font_title = ""
             if st.get("font"):
                 f = st["font"]
+                f = str(Path(f).expanduser())
                 if Path(f).is_absolute():
                     if not Path(f).exists():
                         raise JyrError(f"font file not found: {f}")
