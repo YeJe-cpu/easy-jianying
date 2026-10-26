@@ -68,7 +68,18 @@ def cmd_edit(a) -> int:
     return 0
 
 
+def cmd_adapt(a) -> int:
+    from .adapt import adapt
+    rep = adapt(auto=a.auto)
+    _print(rep)
+    return 0 if rep.get("result", "").startswith("OK") else 1
+
+
 def register(sub) -> None:
+    p = sub.add_parser("adapt", help="learn a new JianYing version after an update")
+    p.add_argument("--auto", action="store_true", help="let jyr drive JianYing to make a sample draft if needed")
+    p.set_defaults(fn=cmd_adapt)
+
     p = sub.add_parser("list", help="drafts on JianYing's home screen")
     p.add_argument("--limit", type=int, default=30)
     p.set_defaults(fn=cmd_list)

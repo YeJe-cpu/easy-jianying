@@ -91,9 +91,14 @@ def _harvest(draft: dict, out: dict[tuple, dict]) -> None:
             if not p:
                 continue
             title = next((x.get("title") for x in m.get("fonts", []) if x.get("path") == p and x.get("title")), "")
-            add({"kind": "font", "name": title or Path(p).stem, "resource_id": str(f.get("id") or ""),
+            role = "subtitle" if m.get("type") == "subtitle" or m.get("recognize_text") else "title"
+            e = {"kind": "font", "name": title or Path(p).stem, "resource_id": str(f.get("id") or ""),
                  "path": p, "category": "剪映字体" if f.get("id") else "内置字体", "template": {}, "seen": 1,
-                 "slot": p})
+                 "slot": p, "roles": {role: 1}}
+            key = ("font", e["resource_id"], p)
+            if key in out:
+                out[key]["roles"][role] = out[key]["roles"].get(role, 0) + 1
+            add(e)
 
 
 def _local_fonts(rt: Runtime) -> list[dict]:
@@ -152,6 +157,8 @@ class Catalog:
         pool = [e for e in self.entries if e["kind"] == kind
                 and (slot is None or e.get("slot") == slot)
                 and (target is None or e.get("target") in (target, None))]
+        if str(name).startswith("auto"):
+            return self.auto(kind, str(name), pool)
         if not pool:
             raise JyrError(f"no {kind} resources in the catalog; apply one once in JianYing, then `jyr catalog scan`")
         key = str(name).strip()
@@ -166,6 +173,16 @@ class Catalog:
                 return usable[0]
         near = ", ".join(e["name"] for e in pool if e.get("available"))[:400]
         raise JyrError(f"{kind} {name!r} not found. Available: {near}")
+
+    def auto(self, kind: str, spec: str, pool: list[dict]) -> dict:
+        """'auto' = the user's most-used available one; 'auto:<role>' for fonts."""
+        if kind == "font":
+            from .recipes.fonts import pick
+            return pick(self, spec.split(":", 1)[1] if ":" in spec else "title")
+        usable = sorted((e for e in pool if e.get("available")), key=lambda e: -e.get("seen", 0))
+        if not usable:
+            raise JyrError(f"no available {kind} for 'auto'")
+        return usable[0]
 
     def list(self, kind: str | None = None) -> list[dict]:
         return [e for e in self.entries if kind is None or e["kind"] == kind]

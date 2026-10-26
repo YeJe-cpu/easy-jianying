@@ -21,75 +21,9 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from jyr import crypto, home, runtime  # noqa: E402
-from mouse import click  # noqa: E402
-
-PROC = "VideoFusion-macOS"
-
-
-def osa(script: str, timeout: float = 30) -> str:
-    out = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=timeout)
-    if out.returncode != 0:
-        print("osascript:", out.stderr.strip()[:300], file=sys.stderr)
-    return out.stdout.strip() if out.returncode == 0 else ""
-
-
-def ax_names() -> list[str]:
-    raw = osa(f'tell application "System Events" to tell process "{PROC}" to get name of every UI element of every window', 60)
-    return [x.strip() for x in raw.split(",") if x.strip() and x.strip() != "missing value"]
-
-
-def wait(pred, timeout: float, step: float = 2.0):
-    end = time.time() + timeout
-    while time.time() < end:
-        r = pred()
-        if r:
-            return r
-        time.sleep(step)
-    return None
-
-
-def locate(rt, title: str) -> tuple[float, float, float]:
-    """Screen position of a home-screen draft title; retried while the UI settles."""
-    script = f'''tell application "System Events" to tell process "{PROC}"
-  repeat with w in windows
-    try
-      set t to (first static text of w whose name is "{title}")
-      set p to position of t
-      set s to size of t
-      return {{item 1 of p, item 2 of p, item 1 of s}}
-    end try
-  end repeat
-end tell'''
-    for _ in range(15):
-        subprocess.run(["open", "-a", str(rt.app_path)])
-        time.sleep(1)
-        pos = osa(script)
-        if pos:
-            return tuple(float(v) for v in pos.replace(" ", "").split(",")[:3])
-        time.sleep(2)
-    raise SystemExit("could not find the draft card on the home screen")
-
-
-def dismiss_dialogs() -> None:
-    """Close JianYing's modal prompts (e.g. 链接媒体 for missing files) with Esc."""
-    for _ in range(3):
-        names = osa(f'tell application "System Events" to tell process "{PROC}" to get name of every window')
-        if "链接媒体" not in names:
-            return
-        osa(f'tell application "System Events" to tell process "{PROC}" to set frontmost to true')
-        osa('tell application "System Events" to key code 53')
-        time.sleep(1.5)
-
-
-def quit_app() -> bool:
-    dismiss_dialogs()
-    # The menu click blocks while JianYing runs its exit flow, so fire and forget.
-    subprocess.Popen(["osascript", "-e", f'tell application "System Events" to tell process "{PROC}" to '
-                      'click menu item "退出" of menu 1 of menu bar item 2 of menu bar 1'])
-    return bool(wait(lambda: not runtime.jianying_running(), 90))
+from jyr.ui import ax_names, launch, open_draft, quit_app  # noqa: E402
 
 
 def summary(info: dict) -> dict:
@@ -125,22 +59,9 @@ def main() -> int:
     before = json.loads(crypto.decrypt_bytes(rt, (folder / "draft_info.json").read_bytes()))
     report = {"draft": folder.name, "steps": {}}
 
-    subprocess.run(["open", "-a", str(rt.app_path)])
-    title = f"HomePageDraftTitle:{folder.name}"
-    ok = wait(lambda: title in ax_names(), 120)
-    report["steps"]["on_home_screen"] = bool(ok)
-    if not ok:
-        print(json.dumps(report, ensure_ascii=False, indent=1))
-        return 1
-    editor = None
-    for _ in range(3):  # the home screen sometimes swallows the first click while it loads
-        time.sleep(3)
-        x, y, w = locate(rt, title)
-        click(x + w / 2, y - 50)
-        editor = wait(lambda: "MainWindowTitleBarExportBtn" in ax_names(), 40)
-        if editor:
-            break
-    report["steps"]["opened_in_editor"] = bool(editor)
+    launch(rt)
+    report["steps"]["opened_in_editor"] = open_draft(rt, folder.name)
+    report["steps"]["on_home_screen"] = True
     names = ax_names()
     report["editor_texts"] = [n.split(":", 1)[1] for n in names if n.startswith("MTLSText:")]
     report["editor_media"] = [n.split(".")[-2] + "." + n.split(".")[-1].replace("apply", "").rstrip(".")

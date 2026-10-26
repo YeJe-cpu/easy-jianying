@@ -228,6 +228,17 @@ class Draft:
         n -= n % 2
         return self.frames_us(max(n, 2))
 
+    def add_beats(self, seg: dict, marks: list[int]) -> None:
+        """踩点 markers. JianYing stores them in source (material) time."""
+        src0 = seg.get("source_timerange", {}).get("start", 0)
+        speed = seg.get("speed", 1.0)
+        user = sorted({int(src0 + m * speed) for m in marks})
+        bid = self._mat("beats", {"type": "beats", "user_beats": user, "ai_beats": {"melody_percents": [0.6]}})
+        refs = seg["extra_material_refs"]
+        kinds = {x["id"]: k for k, v in self.materials.items() for x in v}
+        pos = next((i + 1 for i, r in enumerate(refs) if kinds.get(r) == "placeholder_infos"), len(refs))
+        refs.insert(pos, bid)
+
     def add_transition(self, seg: dict, res: dict, duration: int) -> None:
         duration = self.snap_even_frames(duration)
         m = copy.deepcopy(res["template"])

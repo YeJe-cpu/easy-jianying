@@ -110,6 +110,8 @@ class Compiler:
             seg = d.add_media(track, src, start, dur, source_start=src_in, speed=speed,
                               volume=float(cp.get("volume", 1.0)), transform=cp.get("transform"),
                               reverse=bool(cp.get("reverse")))
+            if cp.get("beats"):
+                d.add_beats(seg, [us(b) for b in cp["beats"]])
             fade = cp.get("fade") or {}
             d.add_fade(seg, us(fade.get("in", 0)), us(fade.get("out", 0)))
             if kind == "video":

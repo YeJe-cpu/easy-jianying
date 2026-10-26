@@ -100,7 +100,8 @@ def detect() -> Runtime:
     dylib = app / "Contents/Frameworks/libvideoeditor.dylib"
     sha = sha256_file(dylib)
     draft_root = Path(os.environ.get("JYR_DRAFT_ROOT", USER_DATA / "Projects/com.lveditor.draft"))
-    profile = dict(KNOWN_VERSIONS.get(version, {}))
+    builtin = {} if os.environ.get("JYR_NO_BUILTIN_PROFILES") else KNOWN_VERSIONS
+    profile = dict(builtin.get(version, {}))
     profile.update(_user_profiles().get(version, {}))
     if profile.get("dylib_sha256") and profile["dylib_sha256"] != sha:
         # Same version string, different binary: treat as unknown.
