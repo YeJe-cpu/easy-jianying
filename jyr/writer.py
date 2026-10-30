@@ -105,7 +105,7 @@ def write(rt: Runtime, draft: Draft, folder: Path, pack: bool = False, overwrite
     draft_id = new_id()
     info = draft.to_json(platform={"os": "mac", "app_id": 3704, "app_version": rt.version, "app_source": "lv"})
     info_bytes = dump(info).encode()
-    enc_info = crypto.encrypt_bytes(rt, info_bytes)
+    enc_info = crypto.seal(rt, info_bytes)
 
     meta = _meta(draft, folder, draft_id, created)
     if pack:
@@ -113,7 +113,7 @@ def write(rt: Runtime, draft: Draft, folder: Path, pack: bool = False, overwrite
             for m in draft.local_media:
                 if m["id"] == v["id"] and m.get("file_path_override"):
                     v["file_Path"] = m["file_path_override"]
-    enc_meta = crypto.encrypt_bytes(rt, dump(meta).encode())
+    enc_meta = crypto.seal(rt, dump(meta).encode())
 
     tl_dir = folder / "Timelines" / draft.id
     for base in (folder, tl_dir):

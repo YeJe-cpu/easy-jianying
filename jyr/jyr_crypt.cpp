@@ -33,7 +33,7 @@ static int run_one(lvve::EncryptUtils& codec, const std::string& mode, const cha
   } else if (mode == "dec") {
     bool ok = false;
     out = codec.decrypt(input, std::string(), ok);
-    if (!ok) return 3;
+    if (!ok || (out.empty() && !input.empty())) return 3;  // 11.7+ answers "ok" with nothing
   } else {
     out = codec.maybeEncrypted(std::string_view(input)) ? "encrypted\n" : "plain\n";
   }

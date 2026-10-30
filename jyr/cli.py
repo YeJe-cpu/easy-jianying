@@ -30,10 +30,14 @@ def cmd_doctor(a) -> int:
             plain = crypto.decrypt_bytes(rt, raw)
             json.loads(plain)
             rep["codec_check"] = f"ok (decrypted {sample.parent.name})"
-    except JyrError as e:
+    except (JyrError, ValueError) as e:
         rep["codec_check"] = f"FAILED: {e}"
     rep["catalog"] = str(catalog.CATALOG_PATH) if catalog.CATALOG_PATH.exists() else "missing — run `jyr catalog scan`"
-    rep["status"] = "ok" if rt.known and str(rep.get("codec_check", "")).startswith("ok") else "needs-attention"
+    rep["cipher"] = "plain (JianYing re-encrypts on first save)" if crypto.plain_mode(rt) else "encrypted"
+    codec_ok = str(rep.get("codec_check", "")).startswith("ok")
+    rep["status"] = "ok" if rt.known and (codec_ok or crypto.plain_mode(rt)) else "needs-attention"
+    if crypto.plain_mode(rt) and not codec_ok:
+        rep["note"] = "create/build/publish work; reading drafts JianYing itself saved (inspect/edit/srt) does not"
     _print(rep)
     return 0 if rep["status"] == "ok" else 1
 

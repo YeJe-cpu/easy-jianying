@@ -187,11 +187,11 @@ class Session:
             fn(**args)
 
     def save(self) -> Path:
-        enc = crypto.encrypt_bytes(self.rt, dump(self.info).encode())
+        enc = crypto.seal(self.rt, dump(self.info).encode())
         for f in _info_files(self.work, self.info["id"]):
             atomic_write(f, enc)
         self.meta["tm_duration"] = self.info.get("duration", self.meta.get("tm_duration", 0))
-        atomic_write(self.work / "draft_meta_info.json", crypto.encrypt_bytes(self.rt, dump(self.meta).encode()))
+        atomic_write(self.work / "draft_meta_info.json", crypto.seal(self.rt, dump(self.meta).encode()))
         (self.work / ".jyr.json").write_text(json.dumps({"name": self.work.name, "edited_from": str(self.src),
                                                          "ops": self.log}, ensure_ascii=False, indent=1))
         return self.work

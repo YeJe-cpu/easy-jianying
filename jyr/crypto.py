@@ -25,8 +25,11 @@ def _clean_env() -> dict:
     return env
 
 
+BRIDGE_REV = "2"  # bump when jyr_crypt.cpp changes
+
+
 def bridge_path(rt: Runtime) -> Path:
-    return CONFIG_DIR / "bin" / f"jyr_crypt-{platform.machine()}-{rt.dylib_sha256[:12]}"
+    return CONFIG_DIR / "bin" / f"jyr_crypt{BRIDGE_REV}-{platform.machine()}-{rt.dylib_sha256[:12]}"
 
 
 def ensure_bridge(rt: Runtime) -> Path:
@@ -65,6 +68,16 @@ def _run(rt: Runtime, mode: str, pairs: list[tuple[Path, Path]]) -> list[bool]:
     return results
 
 
+def plain_mode(rt: Runtime) -> bool:
+    """Versions whose codec we cannot use (11.7+) get plaintext drafts, which JianYing
+    opens and re-encrypts itself on first save."""
+    return os.environ.get("JYR_CIPHER") == "plain" or rt.profile.get("cipher") == "plain"
+
+
+def seal(rt: Runtime, data: bytes) -> bytes:
+    return data if plain_mode(rt) else encrypt_bytes(rt, data)
+
+
 def is_plain_json(data: bytes) -> bool:
     return data.lstrip()[:1] in (b"{", b"[")
 
@@ -76,7 +89,10 @@ def decrypt_bytes(rt: Runtime, data: bytes) -> bytes:
         src, dst = Path(d, "in"), Path(d, "out")
         src.write_bytes(data)
         if not _run(rt, "dec", [(src, dst)])[0]:
-            raise JyrError("decrypt rejected: file is not a draft from this JianYing install, or is damaged")
+            raise JyrError("cannot decrypt this draft with the codec of JianYing " + rt.version +
+                           (" — since 11.7 JianYing keeps the draft key inside the running app, so drafts it "
+                            "saved can no longer be read from outside" if plain_mode(rt) else
+                            " — the file is damaged or from another install"))
         return dst.read_bytes()
 
 

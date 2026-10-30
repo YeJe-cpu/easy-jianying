@@ -211,7 +211,22 @@ def cmd_export(a) -> int:
     return 0
 
 
+def cmd_trash(a) -> int:
+    from . import home
+    rt = runtime.detect()
+    if a.restore:
+        _print(home.restore(rt, Path(a.restore)))
+        return 0
+    _print(home.trash(rt, a.drafts))
+    return 0
+
+
 def register(sub) -> None:
+    p = sub.add_parser("trash", help="take drafts off the home screen (moved to ~/.jyr/trash, restorable)")
+    p.add_argument("drafts", nargs="*", help="draft folder names")
+    p.add_argument("--restore", help="a ~/.jyr/trash/<time> folder to put back")
+    p.set_defaults(fn=cmd_trash)
+
     p = sub.add_parser("export", help="render drafts to video with JianYing itself (drives its UI)")
     p.add_argument("drafts", nargs="+")
     p.add_argument("--out", help="file (.mp4/.mov) or folder; default: JianYing's export folder")

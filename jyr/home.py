@@ -102,14 +102,59 @@ def _fix_paths(rt: Runtime, folder: Path) -> None:
     raw = dump(meta)
     if old and old != str(folder):
         raw = raw.replace(json.dumps(old, ensure_ascii=False)[1:-1], json.dumps(str(folder), ensure_ascii=False)[1:-1])
-    atomic_write(folder / "draft_meta_info.json", crypto.encrypt_bytes(rt, raw.encode()))
+    atomic_write(folder / "draft_meta_info.json", crypto.seal(rt, raw.encode()))
     # Packed media lives inside the draft; point materials at the new place.
     if old and old != str(folder):
         info_raw = crypto.decrypt_bytes(rt, (folder / "draft_info.json").read_bytes()).decode()
         o = json.dumps(old, ensure_ascii=False)[1:-1]
         if o in info_raw:
-            enc = crypto.encrypt_bytes(rt, info_raw.replace(o, json.dumps(str(folder), ensure_ascii=False)[1:-1]).encode())
+            enc = crypto.seal(rt, info_raw.replace(o, json.dumps(str(folder), ensure_ascii=False)[1:-1]).encode())
             tl = json.loads(info_raw)["id"]
             for p in (folder / "draft_info.json", folder / "draft_info.json.bak",
                       folder / "Timelines" / tl / "draft_info.json", folder / "Timelines" / tl / "draft_info.json.bak"):
                 atomic_write(p, enc)
+
+
+def trash(rt: Runtime, names: list[str]) -> dict:
+    """Take drafts off the home screen and move their folders to ~/.jyr/trash/<time>/.
+    Nothing is deleted; `restore` puts them back."""
+    if jianying_running():
+        raise JyrError("JianYing is running. Quit it completely (⌘Q) first.")
+    index_path = rt.draft_root / INDEX
+    index = json.loads(index_path.read_text("utf-8"))
+    folders = {str(rt.draft_root / n) for n in names}
+    missing = [n for n in names if not (rt.draft_root / n).is_dir()]
+    if missing:
+        raise JyrError(f"not found: {missing}")
+    backup = backup_index(rt)
+    bin_dir = CONFIG_DIR / "trash" / time.strftime("%Y%m%d-%H%M%S")
+    bin_dir.mkdir(parents=True)
+    kept, removed = [], []
+    for e in index.get("all_draft_store", []):
+        (removed if e.get("draft_fold_path") in folders else kept).append(e)
+    index["all_draft_store"] = kept
+    (bin_dir / "index_entries.json").write_text(json.dumps(removed, ensure_ascii=False, indent=1))
+    atomic_write(index_path, dump(index))
+    for n in names:
+        shutil.move(str(rt.draft_root / n), str(bin_dir / n))
+    return {"moved": len(names), "index_entries_removed": len(removed), "trash": str(bin_dir),
+            "index_backup": str(backup)}
+
+
+def restore(rt: Runtime, bin_dir: Path) -> dict:
+    """Undo one `trash`: move folders back and re-add their home-screen entries."""
+    if jianying_running():
+        raise JyrError("JianYing is running. Quit it completely (⌘Q) first.")
+    bin_dir = Path(bin_dir)
+    entries = json.loads((bin_dir / "index_entries.json").read_text("utf-8"))
+    index_path = rt.draft_root / INDEX
+    backup_index(rt)
+    index = json.loads(index_path.read_text("utf-8"))
+    for d in bin_dir.iterdir():
+        if d.is_dir():
+            if (rt.draft_root / d.name).exists():
+                raise JyrError(f"{d.name} already exists in the project folder")
+            shutil.move(str(d), str(rt.draft_root / d.name))
+    index["all_draft_store"] = entries + index.get("all_draft_store", [])
+    atomic_write(index_path, dump(index))
+    return {"restored": len(entries)}
