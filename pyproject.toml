@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jyr"
+name = "easy-jianying"
 version = "0.1.0"
 description = "Write JianYing (剪映) desktop drafts from code on macOS — for agents and scripts."
 readme = "README.md"

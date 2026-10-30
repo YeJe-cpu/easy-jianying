@@ -1,6 +1,6 @@
 <div align="center">
 
-# 剪映 Skills
+# Easy 剪映
 
 **一句话交给 AI，剪映里多出一个能接着改的工程。**
 
@@ -24,7 +24,7 @@
 
 你要么拿到一条"烤死"的成片，想改一个字幕都得重来；要么对着 AI 给的时间码，在剪映里一刀一刀手动复刻。前者没法微调，后者等于没省事。
 
-剪映 Skills 把这一步接上：
+Easy 剪映把这一步接上：
 
 > **AI 写计划 → 生成剪映原生草稿 → 你在剪映里打开，就像自己剪的一样继续改。**
 
@@ -75,7 +75,7 @@
 **你需要**：Mac + 剪映专业版、Python 3.10+、ffmpeg、Xcode 命令行工具。
 
 ```bash
-git clone https://github.com/<owner>/jianying-skills && cd jianying-skills
+git clone https://github.com/YeJe-cpu/easy-jianying && cd easy-jianying
 pip install -e '.[asr,fonts]'          # 只生成草稿的话 pip install -e . 就够
 jyr doctor                             # 检查剪映版本，状态应为 ok
 
@@ -157,3 +157,9 @@ jyr build examples/showcase.plan.json --out /tmp/jyr-demo --publish --name "我�
 ## 协议
 
 [PolyForm Noncommercial 1.0.0](LICENSE.md)：个人学习、研究、非商业使用都可以，随便改。**不允许商用**（包括卖课、做付费服务、接单交付）；商用请先联系作者。
+
+## 联系作者
+
+- **想聊聊 / 反馈问题**：X（推特）[@leaf_sanren](https://x.com/leaf_sanren)，欢迎私信；也可以直接提 Issue。
+- **商业授权与合作**：邮件 [aiesecxuanli@gmail.com](mailto:aiesecxuanli@gmail.com)。
+- 同作者的另一个开源项目：[SeeCut](https://github.com/YeJe-cpu/SeeCut)——口播自动精剪成网感动效短视频，也能输出剪映分层草稿。

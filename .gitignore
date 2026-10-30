@@ -5,3 +5,4 @@ __pycache__/
 examples/media/
 *.egg-info/
 .DS_Store
+.readme-preview*.html

@@ -1,6 +1,6 @@
 <div align="center">
 
-# JianYing Skills
+# Easy JianYing
 
 **Tell your AI what to cut. Get a real, editable JianYing (剪映) project back.**
 
@@ -20,7 +20,7 @@ Transitions, masks, keyframes, subtitles, beat-sync, talking-head rough cuts —
 
 Picking shots, writing scripts, timing subtitles: AI handles these today. The last step is the hard one: **getting the result back into your editor.**
 
-Either you get a baked MP4 that you can't tweak, or you re-create the AI's timecodes by hand. JianYing Skills closes that gap:
+Either you get a baked MP4 that you can't tweak, or you re-create the AI's timecodes by hand. Easy JianYing closes that gap:
 
 > **AI writes a plan → we generate a native JianYing draft → you open it and keep editing as if you'd cut it yourself.**
 
@@ -58,7 +58,7 @@ The tool detects your version automatically.
 macOS + JianYing Pro, Python 3.10+, ffmpeg, Xcode command line tools.
 
 ```bash
-git clone https://github.com/<owner>/jianying-skills && cd jianying-skills
+git clone https://github.com/YeJe-cpu/easy-jianying && cd easy-jianying
 pip install -e '.[asr,fonts]'
 jyr doctor
 ./tools/make_fixtures.sh examples/media
@@ -86,3 +86,7 @@ macOS JianYing Pro only, tested on an Intel Mac with JianYing 11.6 and 11.7. App
 ## License
 
 [PolyForm Noncommercial 1.0.0](LICENSE.md). Free for learning, research and other non-commercial use. Commercial use (paid courses, paid services, client work) needs permission from the author.
+
+## Contact
+
+X [@leaf_sanren](https://x.com/leaf_sanren) for chats and feedback (or open an issue); commercial licensing: [aiesecxuanli@gmail.com](mailto:aiesecxuanli@gmail.com). Also by the author: [SeeCut](https://github.com/YeJe-cpu/SeeCut).
