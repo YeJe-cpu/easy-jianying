@@ -10,25 +10,31 @@ Transitions, masks, keyframes, subtitles, beat-sync, talking-head rough cuts —
 
 <img src="docs/media/hero.gif" width="640" alt="A draft generated from a JSON plan, rendered and exported by JianYing itself">
 
-<sub>We didn't render this. A JSON plan became a draft, and <b>JianYing 11.7 opened and exported it on its own</b>.</sub>
+<sub>A JSON plan became a draft, which <b>JianYing 11.7 opened and exported itself</b>.<br>The small circle at the top right is a deliberate picture-in-picture (circle mask + zoom-in) to show the feature, not a glitch.</sub>
 
 </div>
 
 ---
 
-## AI can edit video now. It just can't hand the edit back.
+## Why a draft, not a finished video
 
-Picking shots, writing scripts, timing subtitles: AI handles these today. The last step is the hard one: **getting the result back into your editor.**
+AI-made videos are often one or two details away from done: a typo in a subtitle, a shot half a second too long, music a bit too loud.
 
-Either you get a baked MP4 that you can't tweak, or you re-create the AI's timecodes by hand. Easy JianYing closes that gap:
+With a finished video, every fix means going back to the AI, regenerating and re-rendering — more waiting, more compute, and no guarantee the result is what you wanted. With a JianYing draft, you open JianYing, fix the subtitle, trim the clip and export.
 
-> **AI writes a plan → we generate a native JianYing draft → you open it and keep editing as if you'd cut it yourself.**
+| Fix one typo | Finished video | JianYing draft |
+|---|---|---|
+| How | Regenerate and re-render | Double-click the subtitle in JianYing |
+| Wait | Another full render | Seconds |
+| Compute | Spent again | None |
+
+> **AI writes the edit plan → we generate a native JianYing draft → you open it and fine-tune.**
 
 <div align="center"><img src="docs/media/timeline-multitrack.jpg" width="820" alt="JianYing timeline with main track, transitions, speed ramp, two picture-in-pictures, title, subtitles and music"></div>
 
 ## What it does
 
-| | Feature | In plain words |
+| | Feature | What it means |
 |---|---|---|
 | 🎬 | **Generate drafts** | Multi-track, chop, speed, transitions, masks, keyframes, PiP, text, subtitles, stickers, effects, filters, music fades, images/GIF |
 | ✂️ | **Talking-head rough cut** | Cuts dead air, fillers, stutters and false starts; then an agent drops the sentence you said twice |
@@ -67,7 +73,7 @@ jyr build examples/showcase.plan.json --out /tmp/jyr-demo --publish --name "my f
 
 Quit JianYing before publishing; the new draft appears first on its home screen. Plan reference: [docs/plan-format.md](docs/plan-format.md). Agent skills: [`skills/`](skills/).
 
-## Why it's worth a try
+## How we checked it
 
 1. **JianYing verifies every feature.** It opens our draft and re-saves it in its own format, and we diff the result track by track. Then real footage gets checked by a human eye and exported.
 2. **Effects you don't have get downloaded by JianYing.** We ship 375 resource cards (transitions, masks, animations, filters, effects, stickers, fonts). We tested it: delete the cache, and JianYing downloads the effect or font again by its ID.
