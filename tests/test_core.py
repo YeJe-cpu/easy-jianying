@@ -31,6 +31,8 @@ def setUpModule():
        str(TMP / "a.mp4"))
     ff("-f", "lavfi", "-i", "color=c=red:size=64x64", "-frames:v", "1", str(TMP / "p.png"))
     ff("-f", "lavfi", "-i", "testsrc2=size=64x64:rate=10:duration=1", str(TMP / "g.gif"))
+    ff("-f", "lavfi", "-i", "sine=duration=3", "-i", str(TMP / "p.png"), "-map", "0", "-map", "1",
+       "-c:a", "libmp3lame", "-c:v", "mjpeg", "-disposition:v", "attached_pic", str(TMP / "cover.mp3"))
 
 
 def tearDownModule():
@@ -88,6 +90,18 @@ class PlanTests(unittest.TestCase):
         d = compile_({"tracks": [{"type": "video", "clips": [{"src": str(TMP / "p.png"), "duration": 30},
                                                               {"src": str(TMP / "g.gif"), "duration": 30}]}]})
         self.assertEqual([m["type"] for m in d.materials["videos"]], ["photo", "gif"])
+
+    def test_mp3_with_cover_art_is_audio(self):
+        # Regression (2026-10-30): an embedded album cover made a song look like a video,
+        # which left JianYing's preview black.
+        d = compile_({"tracks": [{"type": "video", "clips": [{"src": str(TMP / "a.mp4"), "duration": 2}]},
+                                 {"type": "audio", "clips": [{"src": str(TMP / "cover.mp3"), "duration": 2}]}]})
+        self.assertEqual(len(d.materials["audios"]), 1)
+        self.assertEqual(len(d.materials["videos"]), 1)
+        # a video file used for its sound on an audio track is an audio material too
+        d = compile_({"tracks": [{"type": "video", "clips": [{"src": str(TMP / "p.png"), "duration": 2}]},
+                                 {"type": "audio", "clips": [{"src": str(TMP / "a.mp4"), "duration": 2}]}]})
+        self.assertEqual([m["type"] for m in d.materials["audios"]], ["extract_music"])
 
     def test_keyframes_validation(self):
         with self.assertRaises(JyrError):

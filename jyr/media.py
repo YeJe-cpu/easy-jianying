@@ -43,15 +43,17 @@ def probe(path: str) -> MediaInfo:
         raise JyrError(f"ffprobe cannot read {path}: {out.stderr.strip()[:200]}")
     info = json.loads(out.stdout)
     streams = info.get("streams", [])
-    video = next((s for s in streams if s.get("codec_type") == "video"), None)
-    audio = next((s for s in streams if s.get("codec_type") == "audio"), None)
     ext = p.suffix.lower()
+    # Album art inside an mp3/m4a shows up as a "video" stream; it is not picture content.
+    pictures = [s for s in streams if s.get("codec_type") == "video"
+                and not (s.get("disposition", {}).get("attached_pic") and ext not in IMAGE_EXT)]
+    video = pictures[0] if pictures else None
+    audio = next((s for s in streams if s.get("codec_type") == "audio"), None)
     if ext == ".gif" and video is not None:
         # JianYing keeps GIFs as their own kind and loops them like a still.
         return MediaInfo(str(p), "gif", STILL_DURATION_US, int(video.get("width", 0)), int(video.get("height", 0)), False)
-    if video is not None and (ext in IMAGE_EXT and ext != ".gif" or video.get("disposition", {}).get("attached_pic")):
-        if audio is None or ext in IMAGE_EXT:
-            return MediaInfo(str(p), "photo", STILL_DURATION_US, int(video.get("width", 0)), int(video.get("height", 0)), False)
+    if video is not None and ext in IMAGE_EXT:
+        return MediaInfo(str(p), "photo", STILL_DURATION_US, int(video.get("width", 0)), int(video.get("height", 0)), False)
     dur = float(info.get("format", {}).get("duration") or 0)
     if video is not None:
         w, h = int(video.get("width", 0)), int(video.get("height", 0))

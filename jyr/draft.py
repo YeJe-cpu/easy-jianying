@@ -126,13 +126,13 @@ class Draft:
             clip["flip"] = {"horizontal": bool(t.get("flip_h")), "vertical": bool(t.get("flip_v"))}
         return clip
 
-    def _media_material(self, info: MediaInfo) -> dict:
+    def _media_material(self, info: MediaInfo, as_audio: bool = False) -> dict:
         # JianYing keeps one material per segment, even for the same file.
         known = self.media.get(info.path)
         local_id = known["local_material_id"] if known else new_id().lower()
         uid = hashlib.md5(info.path.encode()).hexdigest()
         name = Path(info.path).name
-        if info.kind == "audio":
+        if info.kind == "audio" or as_audio:
             mat = {"type": "extract_music", "name": name, "duration": info.duration_us, "path": info.path,
                    "category_name": "local", "music_id": local_id, "local_material_id": local_id,
                    "unique_id": uid, "similiar_music_info": {}, "tts_benefit_info": {"benefit_type": "none"}}
@@ -163,6 +163,8 @@ class Draft:
         if track.kind == "video" and info.kind == "audio":
             raise JyrError(f"{path} has no picture; put it on an audio track")
         still = info.kind in ("photo", "gif")
+        if track.kind == "audio" and not info.has_audio:
+            raise JyrError(f"{path} has no sound; it cannot go on an audio track")
         if track.kind == "audio" and still:
             raise JyrError(f"{path} is an image; put it on a video track")
         if not 0.1 <= speed <= 100:
@@ -174,7 +176,7 @@ class Draft:
             raise JyrError(f"{Path(path).name}: needs {(source_start + src_dur) / 1e6:.3f}s of source but "
                            f"the file is {info.duration_us / 1e6:.3f}s")
         src_dur = src_dur if still else min(src_dur, info.duration_us - source_start)
-        mat = self._media_material(info)
+        mat = self._media_material(info, as_audio=track.kind == "audio")
         seg = self._base_segment(track, start, duration)
         seg["material_id"] = mat["id"]
         seg["source_timerange"] = {"start": int(source_start), "duration": int(src_dur)}
