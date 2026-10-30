@@ -10,8 +10,8 @@ description: 用代码生成 / 读取 / 修改 / 导出 剪映专业版(macOS) �
 ## 0. 第一次用 / 剪映升级后
 ```bash
 jyr doctor            # 找到剪映、编译加密桥、试解一份草稿；status 应为 ok
-jyr catalog scan      # 扫你用过的转场/蒙版/特效/动画/字体，生成资源目录（约 1–3 分钟）
-jyr adapt --auto      # 剪映升级后报 "has not been adapted" 时跑；全自动
+jyr catalog scan      # 可选：剪映 ≤11.6 时，从你自己的草稿额外学资源（内置已带 375 个常用资源）
+jyr adapt             # 剪映升级后报 "has not been adapted" 时跑；11.7+ 会自动切成"只写"
 ```
 
 ## 1. 写计划 → 生成草稿 → 上剪映首页
@@ -33,12 +33,13 @@ jyr publish /abs/work/build1 --name 名字      # 剪映必须完全退出
 ```
 字段全集见 `docs/plan-format.md`。要点：
 - 片段不写 `start` 就接在同轨上一段后面；不写 `duration` 就用到素材结尾。
-- 资源用剪映界面里的中文名：转场 `"叠化"`、蒙版 `{"shape":"circle"}`、动画 `{"in":"打字机 I"}`、特效轨 `{"type":"effect","clips":[{"name":"模糊"}]}`。名字找不到时报错会列出可用项；`jyr catalog list transition` 也能看。
+- 资源用剪映界面里的中文名（缓存清了也没事，剪映打开草稿时会按编号自己下载）：转场 `"叠化"`、蒙版 `{"shape":"circle"}`、动画 `{"in":"打字机 I"}`、特效轨 `{"type":"effect","clips":[{"name":"模糊"}]}`。名字找不到时报错会列出可用项；`jyr catalog list transition` 也能看。
 - `"auto"` = 用你最常用的那个；字体 `"auto:title|subtitle|body|handwriting|cute"`。
 - 第一条 video 轨是主轨，应从 0 开始、连续；画中画放后面的 video 轨。
 - 转场挂在前一段上，后面必须紧接下一段；末段不能有转场。
 
-## 2. 读 / 改已有草稿（永远改副本）
+## 2. 读 / 改已有草稿（永远改副本；仅剪映 ≤11.6）
+剪映 11.7 起草稿密钥只在剪映进程里，jyr 读不了剪映存过的草稿。要改就改计划、重新生成。
 ```bash
 jyr list                               # 首页草稿
 jyr inspect "草稿名"                   # 轨道、文字、丢失素材、用到的资源

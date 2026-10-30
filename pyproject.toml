@@ -7,6 +7,7 @@ name = "jyr"
 version = "0.1.0"
 description = "Write JianYing (剪映) desktop drafts from code on macOS — for agents and scripts."
 readme = "README.md"
+license = {file = "LICENSE.md"}
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24"]
 
