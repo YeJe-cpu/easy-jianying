@@ -21,4 +21,4 @@ jyr = "jyr.cli:main"
 packages = ["jyr", "jyr.recipes"]
 
 [tool.setuptools.package-data]
-jyr = ["jyr_crypt.cpp"]
+jyr = ["jyr_crypt.cpp", "data/resources.json"]

@@ -39,8 +39,28 @@ def _post(kind: int, x: float, y: float) -> None:
     _cf.CFRelease(ev)
 
 
+def frontmost() -> str:
+    return osa('tell application "System Events" to get name of first process whose frontmost is true')
+
+
+def bring_front() -> bool:
+    osa(f'tell application "System Events" to tell process "{PROC}" to set frontmost to true')
+    for _ in range(10):
+        if frontmost() == PROC:
+            return True
+        time.sleep(0.3)
+    return False
+
+
+class NotFrontmost(RuntimeError):
+    pass
+
+
 def click(x: float, y: float) -> None:
-    """A real mouse click; JianYing ignores System Events' synthetic `click at`."""
+    """A real mouse click; JianYing ignores System Events' synthetic `click at`.
+    Refuses unless JianYing is the frontmost app, so a click never lands in another window."""
+    if not bring_front():
+        raise NotFrontmost(f"JianYing is not frontmost ({frontmost()!r} is); not clicking")
     _post(5, x, y)
     time.sleep(0.15)
     _post(1, x, y)

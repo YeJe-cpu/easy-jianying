@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 
 from . import crypto
-from .runtime import CONFIG_DIR, Runtime
+from .runtime import CONFIG_DIR, USER_DATA, Runtime
 from .util import JyrError
 
 CATALOG_PATH = CONFIG_DIR / "catalog.json"
@@ -161,16 +161,63 @@ def scan(rt: Runtime, draft_root: Path | None = None) -> dict:
     return cat
 
 
+PACK_PATH = Path(__file__).with_name("data") / "resources.json"
+
+
 def load() -> dict:
+    """The user's own scan, if any (empty on JianYing 11.7+, whose drafts we cannot read)."""
     if not CATALOG_PATH.is_file():
-        raise JyrError("no resource catalog yet; run `jyr catalog scan` once")
+        return {"entries": []}
     return json.loads(CATALOG_PATH.read_text())
+
+
+def _resolve(v, app: Path | None):
+    if isinstance(v, dict):
+        return {k: _resolve(x, app) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_resolve(x, app) for x in v]
+    if isinstance(v, str):
+        if v.startswith("@userdata/"):
+            return str(USER_DATA / v[len("@userdata/"):])
+        if v.startswith("@app/") and app is not None:
+            return str(app / v[len("@app/"):])
+    return v
+
+
+def builtin_cards() -> list[dict]:
+    """Resource cards shipped with jyr. JianYing finds resources by id and downloads
+    missing effect files itself, so a card works even if this machine never used it."""
+    if not PACK_PATH.is_file():
+        return []
+    try:
+        from .runtime import find_app
+        app = find_app()
+    except JyrError:
+        app = None
+    cards = []
+    for c in json.loads(PACK_PATH.read_text("utf-8"))["cards"]:
+        e = _resolve(dict(c), app)
+        e["template"] = _resolve(c.get("template", {}), app)
+        e["seen"] = max(1, 1000 - c.get("rank", 999))
+        e["source"] = "builtin"
+        on_disk = bool(e.get("path")) and Path(e["path"]).exists()
+        # Bundled app fonts must exist; everything else JianYing fetches by id.
+        e["available"] = on_disk or not str(c.get("path", "")).startswith("@app/")
+        cards.append(e)
+    return cards
 
 
 class Catalog:
     def __init__(self, data: dict | None = None):
-        self.data = data if data is not None else load()
-        self.entries = self.data["entries"]
+        if data is not None:
+            self.data = data
+            self.entries = data["entries"]
+            return
+        self.data = load()
+        own = self.data["entries"]
+        key = lambda e: (e["kind"], e.get("resource_id") or e.get("path"), e.get("slot", ""))
+        mine = {key(e) for e in own}
+        self.entries = own + [e for e in builtin_cards() if key(e) not in mine]
 
     def find(self, kind: str, name: str, slot: str | None = None, target: str | None = None) -> dict:
         pool = [e for e in self.entries if e["kind"] == kind
@@ -179,16 +226,15 @@ class Catalog:
         if str(name).startswith("auto"):
             return self.auto(kind, str(name), pool)
         if not pool:
-            raise JyrError(f"no {kind} resources in the catalog; apply one once in JianYing, then `jyr catalog scan`")
+            raise JyrError(f"no {kind} resources known; jyr ships common ones — reinstall, or apply one in "
+                           "JianYing ≤11.6 and run `jyr catalog scan`")
         key = str(name).strip()
         for test in (lambda e: e["resource_id"] == key, lambda e: e["name"] == key,
                      lambda e: e["name"].lower() == key.lower(), lambda e: key.lower() in e["name"].lower()):
             hits = [e for e in pool if test(e)]
             if hits:
-                usable = [e for e in hits if e.get("available")]
-                if not usable:
-                    raise JyrError(f"{kind} {name!r} is known but not in JianYing's cache any more; "
-                                   "use it once in the app to download it, then `jyr catalog scan`")
+                # The cache may have been cleared; JianYing re-downloads by id when the draft opens.
+                usable = sorted(hits, key=lambda e: (not e.get("available"), -e.get("seen", 0)))
                 return usable[0]
         near = ", ".join(e["name"] for e in pool if e.get("available"))[:400]
         raise JyrError(f"{kind} {name!r} not found. Available: {near}")

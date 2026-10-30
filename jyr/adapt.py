@@ -64,6 +64,25 @@ def adapt(auto: bool = False) -> dict:
     crypto.ensure_bridge(rt)
     rep["steps"]["bridge_built"] = str(bridge)
 
+    # 11.7+: the codec answers "ok" with nothing unless the app itself supplied the key.
+    probe = json.dumps({"jyr": "probe"}).encode()
+    try:
+        crypto.encrypt_bytes(rt, probe)
+        codec_usable = True
+    except Exception:
+        codec_usable = False
+    rep["steps"]["codec_usable_from_outside"] = codec_usable
+    if not codec_usable:
+        known = [v.get("timeline_version") for v in runtime.KNOWN_VERSIONS.values() if v.get("timeline_version")]
+        tv = sorted(known, key=lambda v: [int(p) for p in v.split(".")])[-1]
+        profile = {"timeline_version": tv, "cipher": "plain", "dylib_sha256": rt.dylib_sha256,
+                   "adapted_at": time.strftime("%Y-%m-%d %H:%M")}
+        rep["profile_saved"] = str(runtime.save_user_profile(rt.version, profile))
+        rep["result"] = ("OK (write-only) — this JianYing keeps the draft key inside the app (11.7+). "
+                         "jyr writes plaintext drafts that JianYing encrypts itself on first save; reading drafts "
+                         "JianYing saved (inspect/edit/srt) is not possible. Open one built draft to confirm.")
+        return rep
+
     samples = _samples(rt)
     if not samples and auto:
         from . import ui

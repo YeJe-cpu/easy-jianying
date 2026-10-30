@@ -27,7 +27,11 @@ CONFIG_DIR = Path(os.environ.get("JYR_HOME", Path.home() / ".jyr"))
 
 # app version -> what that version itself writes as draft_info.new_version.
 # Observed from drafts saved by each version on our machines.
+# "cipher": "plain" = from 11.7 the draft key lives inside the running app; we write
+# plaintext drafts (JianYing encrypts them on first save) and cannot read its drafts.
 KNOWN_VERSIONS: dict[str, dict] = {
+    "11.7.0": {"timeline_version": "189.0.0", "cipher": "plain",
+               "dylib_sha256": "c2c9bc704f4aef03b069838bcaded39cc6b0a5ec72cf9ff7a8ee854bed3391b2"},
     "11.6.0": {"timeline_version": "189.0.0", "dylib_sha256": "a490d9a08b71a2d9af138d24528d3d40d65b37b06911627c53a2915c6cac0754"},
     "11.5.0": {"timeline_version": "187.0.0"},
 }
