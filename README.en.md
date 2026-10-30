@@ -10,7 +10,7 @@ Transitions, masks, keyframes, subtitles, beat-sync, talking-head rough cuts —
 
 <img src="docs/media/hero.gif" width="640" alt="A draft generated from a JSON plan, rendered and exported by JianYing itself">
 
-<sub>A JSON plan became a draft, which <b>JianYing 11.7 opened and exported itself</b>.<br>The small circle at the top right is a deliberate picture-in-picture (circle mask + zoom-in) to show the feature, not a glitch.</sub>
+<p>A JSON plan became a draft, which <b>JianYing 11.7 opened and exported itself</b>.<br>The small circle at the top right is a deliberate picture-in-picture (circle mask + zoom-in) to show the feature, not a glitch.</p>
 
 </div>
 

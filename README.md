@@ -10,7 +10,7 @@
 
 <img src="docs/media/hero.gif" width="640" alt="一份 JSON 计划生成的剪映草稿，由剪映自己导出">
 
-<sub>这段画面由一份 JSON 计划生成草稿，再由<b>剪映 11.7 自己打开、导出</b>。<br>右上角的小圆圈是特意加的画中画（圆形蒙版 + 放大入场），用来演示功能，不是穿帮。</sub>
+<p>这段画面由一份 JSON 计划生成草稿，再由<b>剪映 11.7 自己打开、导出</b>。<br>右上角的小圆圈是特意加的画中画（圆形蒙版 + 放大入场），用来演示功能，不是穿帮。</p>
 
 </div>
 
@@ -34,7 +34,7 @@ Easy 剪映做的就是这一步：**AI 写剪辑计划 → 生成剪映草稿 �
 
 <div align="center">
 <img src="docs/media/timeline-multitrack.jpg" width="820" alt="剪映时间线：主轨 4 段 + 叠化/推近转场 + 1.5 倍速 + 两条画中画 + 标题 + 字幕 + BGM">
-<br><sub>剪映里看到的就是这样：主轨、转场、变速、画中画、标题、字幕、音乐，各在各的轨道上。</sub>
+<p>剪映里看到的就是这样：主轨、转场、变速、画中画、标题、字幕、音乐，各在各的轨道上。</p>
 </div>
 
 ## 它能做什么
@@ -115,7 +115,7 @@ jyr build examples/showcase.plan.json --out /tmp/jyr-demo --publish --name "我�
 
 <div align="center">
 <img src="docs/media/font-selfheal.jpg" width="640" alt="字体缓存被清掉后，剪映自动重新下载，标题照常显示为山雁体">
-<br><sub>实测：把「山雁体」的缓存删掉，剪映打开草稿时自己下回来了。</sub>
+<p>实测：把「山雁体」的缓存删掉，剪映打开草稿时自己下回来了。</p>
 </div>
 
 **3. 口播粗剪拿人工剪辑做对照。**
