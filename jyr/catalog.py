@@ -1,10 +1,14 @@
-"""A catalog of JianYing resources this machine already has.
+"""A catalog of JianYing / CapCut resources this machine already has.
 
 Transitions, masks, effects, filters, text/video animations, stickers and
 fonts are native resources: a draft only points at them by id and by a path
 in JianYing's cache. Instead of shipping a fixed list, we scan the user's own
 drafts and remember how JianYing itself recorded each resource. Anything the
 user has applied once in the app (and is still cached) becomes usable here.
+
+CapCut keeps its own resource ids, so it gets its own catalog. Each CapCut
+draft also has a plaintext key_value.json recording, per resource used,
+whether it is a Pro (is_vip) one; entries carry that as `vip`.
 """
 
 from __future__ import annotations
@@ -14,10 +18,10 @@ import tempfile
 from pathlib import Path
 
 from . import crypto
-from .runtime import CONFIG_DIR, USER_DATA, Runtime
+from .runtime import CONFIG_DIR, JIANYING, App, Runtime
 from .util import JyrError
 
-CATALOG_PATH = CONFIG_DIR / "catalog.json"
+CATALOG_PATH = CONFIG_DIR / "catalog.json"  # JianYing; CapCut has its own (see catalog_path)
 FONT_EXT = {".ttf", ".otf", ".ttc"}
 SYSTEM_FONT_DIRS = [Path("/System/Library/Fonts"), Path("/Library/Fonts"), Path.home() / "Library/Fonts"]
 
@@ -33,6 +37,24 @@ MATERIAL_KINDS = {
 VOLATILE = {"id", "request_id", "constant_material_id", "config", "duration", "value", "time_range"}
 
 
+def catalog_path(rt: Runtime | App | None = None) -> Path:
+    app = rt.app if isinstance(rt, Runtime) else (rt or JIANYING)
+    return CATALOG_PATH if app is JIANYING else CONFIG_DIR / f"catalog-{app.key}.json"
+
+
+def vip_flags(key_value: dict) -> dict[str, bool]:
+    """key_value.json -> {resource id: is Pro}. Local media entries are skipped."""
+    out = {}
+    for v in key_value.values():
+        if not isinstance(v, dict) or v.get("materialSubcategory") == "local":
+            continue
+        rid, flag = str(v.get("materialId") or ""), v.get("is_vip")
+        if rid and flag is not None:
+            # once seen as Pro anywhere, it stays Pro
+            out[rid] = out.get(rid, False) or str(flag) not in ("0", "", "false", "False")
+    return out
+
+
 def _entry(kind: str, mat: dict, extra: dict | None = None) -> dict | None:
     rid = str(mat.get("resource_id") or mat.get("effect_id") or mat.get("sticker_id") or "")
     name = mat.get("name") or ""
@@ -46,7 +68,7 @@ def _entry(kind: str, mat: dict, extra: dict | None = None) -> dict | None:
     return e
 
 
-def _harvest(draft: dict, out: dict[tuple, dict]) -> None:
+def _harvest(draft: dict, out: dict[tuple, dict], font_category: str = "剪映字体") -> None:
     mats = draft.get("materials", {})
 
     def add(e):
@@ -93,7 +115,7 @@ def _harvest(draft: dict, out: dict[tuple, dict]) -> None:
             title = next((x.get("title") for x in m.get("fonts", []) if x.get("path") == p and x.get("title")), "")
             role = "subtitle" if m.get("type") == "subtitle" or m.get("recognize_text") else "title"
             e = {"kind": "font", "name": title or Path(p).stem, "resource_id": str(f.get("id") or ""),
-                 "path": p, "category": "剪映字体" if f.get("id") else "内置字体", "template": {}, "seen": 1,
+                 "path": p, "category": font_category if f.get("id") else "内置字体", "template": {}, "seen": 1,
                  "slot": p, "roles": {role: 1}}
             key = ("font", e["resource_id"], p)
             if key in out:
@@ -125,6 +147,8 @@ def _local_fonts(rt: Runtime) -> list[dict]:
             continue
         for p in sorted(base.rglob("*")):
             if p.suffix.lower() in FONT_EXT:
+                if cat == "内置字体" and p.parent.name == "Effect":
+                    continue  # emoji fallback, not a text font
                 cjk = True if cat == "内置字体" else _has_cjk(p)
                 if cjk is False:
                     continue  # a Latin-only font is no use for Chinese titles or subtitles
@@ -137,6 +161,7 @@ def scan(rt: Runtime, draft_root: Path | None = None) -> dict:
     root = Path(draft_root or rt.draft_root)
     files = sorted(root.glob("*/draft_info.json"))
     found: dict[tuple, dict] = {}
+    vip: dict[str, bool] = {}
     with tempfile.TemporaryDirectory(prefix="jyr-scan-") as tmp:
         decoded = crypto.decrypt_many(rt, files, Path(tmp))
         bad = 0
@@ -145,59 +170,78 @@ def scan(rt: Runtime, draft_root: Path | None = None) -> dict:
                 bad += 1
                 continue
             try:
-                _harvest(json.loads(dst.read_text("utf-8")), found)
+                _harvest(json.loads(dst.read_text("utf-8")), found, "CapCut字体" if rt.is_capcut else "剪映字体")
             except (json.JSONDecodeError, UnicodeDecodeError):
                 bad += 1
+            kv = src.parent / "key_value.json"
+            if kv.is_file():
+                try:
+                    for rid, pro in vip_flags(json.loads(kv.read_text("utf-8"))).items():
+                        vip[rid] = vip.get(rid, False) or pro
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    pass
     entries = list(found.values())
     seen_paths = {e["path"] for e in entries if e["kind"] == "font"}
     entries += [f for f in _local_fonts(rt) if f["path"] not in seen_paths]
     for e in entries:
         e["available"] = bool(e["path"]) and Path(e["path"]).exists()
         e.pop("slot", None) if e["kind"] == "font" else None
+        if rt.is_capcut:
+            # True = Pro, False = free, None = no record. Fonts bundled in the app are free.
+            e["vip"] = vip.get(e["resource_id"]) if e["resource_id"] else (False if e["category"] == "内置字体" else None)
     entries.sort(key=lambda e: (e["kind"], -e["seen"], e["name"]))
-    cat = {"app_version": rt.version, "drafts_scanned": len(files), "drafts_unreadable": bad, "entries": entries}
-    CATALOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CATALOG_PATH.write_text(json.dumps(cat, ensure_ascii=False, indent=1))
+    cat = {"app": rt.app.key, "app_version": rt.version, "drafts_scanned": len(files), "drafts_unreadable": bad,
+           "entries": entries}
+    out = catalog_path(rt)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(cat, ensure_ascii=False, indent=1))
     return cat
 
 
 PACK_PATH = Path(__file__).with_name("data") / "resources.json"
 
 
-def load() -> dict:
+def pack_path(app: App = JIANYING) -> Path:
+    return PACK_PATH if app is JIANYING else PACK_PATH.with_name(f"resources.{app.key}.json")
+
+
+def load(rt: Runtime | App | None = None) -> dict:
     """The user's own scan, if any (empty on JianYing 11.7+, whose drafts we cannot read)."""
-    if not CATALOG_PATH.is_file():
+    p = catalog_path(rt)
+    if not p.is_file():
         return {"entries": []}
-    return json.loads(CATALOG_PATH.read_text())
+    return json.loads(p.read_text())
 
 
-def _resolve(v, app: Path | None):
+def _resolve(v, app: Path | None, user_data: Path):
     if isinstance(v, dict):
-        return {k: _resolve(x, app) for k, x in v.items()}
+        return {k: _resolve(x, app, user_data) for k, x in v.items()}
     if isinstance(v, list):
-        return [_resolve(x, app) for x in v]
+        return [_resolve(x, app, user_data) for x in v]
     if isinstance(v, str):
         if v.startswith("@userdata/"):
-            return str(USER_DATA / v[len("@userdata/"):])
+            return str(user_data / v[len("@userdata/"):])
         if v.startswith("@app/") and app is not None:
             return str(app / v[len("@app/"):])
     return v
 
 
-def builtin_cards() -> list[dict]:
+def builtin_cards(target: App = JIANYING) -> list[dict]:
     """Resource cards shipped with jyr. JianYing finds resources by id and downloads
-    missing effect files itself, so a card works even if this machine never used it."""
-    if not PACK_PATH.is_file():
+    missing effect files itself, so a card works even if this machine never used it.
+    The CapCut pack holds only resources CapCut itself marked free."""
+    pack = pack_path(target)
+    if not pack.is_file():
         return []
     try:
         from .runtime import find_app
-        app = find_app()
+        app = find_app(target)
     except JyrError:
         app = None
     cards = []
-    for c in json.loads(PACK_PATH.read_text("utf-8"))["cards"]:
-        e = _resolve(dict(c), app)
-        e["template"] = _resolve(c.get("template", {}), app)
+    for c in json.loads(pack.read_text("utf-8"))["cards"]:
+        e = _resolve(dict(c), app, target.user_data)
+        e["template"] = _resolve(c.get("template", {}), app, target.user_data)
         e["seen"] = max(1, 1000 - c.get("rank", 999))
         e["source"] = "builtin"
         on_disk = bool(e.get("path")) and Path(e["path"]).exists()
@@ -208,16 +252,17 @@ def builtin_cards() -> list[dict]:
 
 
 class Catalog:
-    def __init__(self, data: dict | None = None):
+    def __init__(self, data: dict | None = None, rt: Runtime | None = None):
+        self.app = rt.app if rt is not None else JIANYING
         if data is not None:
             self.data = data
             self.entries = data["entries"]
             return
-        self.data = load()
+        self.data = load(self.app)
         own = self.data["entries"]
         key = lambda e: (e["kind"], e.get("resource_id") or e.get("path"), e.get("slot", ""))
         mine = {key(e) for e in own}
-        self.entries = own + [e for e in builtin_cards() if key(e) not in mine]
+        self.entries = own + [e for e in builtin_cards(self.app) if key(e) not in mine]
 
     def find(self, kind: str, name: str, slot: str | None = None, target: str | None = None) -> dict:
         pool = [e for e in self.entries if e["kind"] == kind
@@ -226,6 +271,9 @@ class Catalog:
         if str(name).startswith("auto"):
             return self.auto(kind, str(name), pool)
         if not pool:
+            if self.app is not JIANYING:
+                raise JyrError(f"no {kind} resources known for {self.app.label}; apply one in {self.app.label}, "
+                               f"save, quit, then run `jyr --app {self.app.key} catalog scan`")
             raise JyrError(f"no {kind} resources known; jyr ships common ones — reinstall, or apply one in "
                            "JianYing ≤11.6 and run `jyr catalog scan`")
         key = str(name).strip()
@@ -234,7 +282,7 @@ class Catalog:
             hits = [e for e in pool if test(e)]
             if hits:
                 # The cache may have been cleared; JianYing re-downloads by id when the draft opens.
-                usable = sorted(hits, key=lambda e: (not e.get("available"), -e.get("seen", 0)))
+                usable = sorted(hits, key=lambda e: (not e.get("available"), bool(e.get("vip")), -e.get("seen", 0)))
                 return usable[0]
         near = ", ".join(e["name"] for e in pool if e.get("available"))[:400]
         raise JyrError(f"{kind} {name!r} not found. Available: {near}")
@@ -244,7 +292,8 @@ class Catalog:
         if kind == "font":
             from .recipes.fonts import pick
             return pick(self, spec.split(":", 1)[1] if ":" in spec else "title")
-        usable = sorted((e for e in pool if e.get("available")), key=lambda e: -e.get("seen", 0))
+        # 'auto' never picks a CapCut Pro resource
+        usable = sorted((e for e in pool if e.get("available") and not e.get("vip")), key=lambda e: -e.get("seen", 0))
         if not usable:
             raise JyrError(f"no available {kind} for 'auto'")
         return usable[0]

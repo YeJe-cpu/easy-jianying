@@ -67,3 +67,14 @@
 4. 读出这个版本写的时间线版本号（11.5 → 187.0.0，11.6 → 189.0.0），存进 `~/.jyr/profiles.json`。
 
 `--auto`：没有样本时，自己打开剪映点"开始创作"再退出，让剪映存一份。
+
+## 6. CapCut 国际版：只碰明文文件
+
+CapCut 和剪映用同一种草稿格式（`version 360000`），但 CapCut 的草稿**从不加密**。所以 CapCut 一侧只做文件读写：
+
+- **认 App**：`runtime.App` 记着两家的 bundle id、数据目录、进程名、`platform.app_id/app_source`（剪映 3704 / `lv`，CapCut 359289 / `cc`）。`--app capcut`、`JYR_TARGET`、`JYR_APP` 指向谁就用谁；只装一个就用它。CapCut 程序里也带 `libvideoeditor.dylib`，jyr 不链接、不调用、连哈希都不算。
+- **时间线版本号**：从 CapCut 自己存的草稿里读——只认 `last_modified_platform` 的版本与本机 CapCut 相同、`app_source` 为 `cc` 的，取最大的 `new_version`（9.4.1 → 185.0.0）。
+- **写**：字段和剪映完全相同，只换 `platform` 与 `new_version`；首页索引 `root_meta_info.json` 字段也相同，推送前同样要求 CapCut 完全退出、先备份索引。
+- **读**：`inspect` / `srt` / `edit` 直接读明文 JSON，不经过任何解码。
+- **资源**：老资源（如动画「放大」「向右甩入」）两家共用编号，新资源不共用，所以 CapCut 有自己的目录 `~/.jyr/catalog-capcut.json`。每个草稿文件夹里明文的 `key_value.json` 记着用过的资源 `is_vip`，扫描时据此打上免费 / Pro；内置包 `jyr/data/resources.capcut.json` 只收免费的（`tools/build_resource_pack.py --app capcut`）。
+- **不做**：不驱动 CapCut 界面，所以没有 CapCut 的 `export`、`adapt --auto`、`tools/ui_accept.py`；验收靠人在 CapCut 里打开、播放、导出。

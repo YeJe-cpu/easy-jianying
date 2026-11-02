@@ -1,7 +1,8 @@
-"""Put a built draft on JianYing's home screen (项目首页).
+"""Put a built draft on JianYing's / CapCut's home screen (项目首页).
 
-This is the only step that touches JianYing's own files. It refuses to run
-while JianYing is open, backs up the index first, and only ever appends.
+This is the only step that touches the app's own files. It refuses to run
+while the app is open, backs up the index first, and only ever appends.
+CapCut keeps the same index (root_meta_info.json) with the same fields.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import shutil
 import time
 from pathlib import Path
 
-from .runtime import CONFIG_DIR, Runtime, jianying_running
+from .runtime import CONFIG_DIR, Runtime, app_running, quit_hint
 from .util import JyrError, atomic_write, dump, new_id, now_us
 from .writer import read_meta
 
@@ -22,7 +23,8 @@ def backup_index(rt: Runtime) -> Path:
     src = rt.draft_root / INDEX
     dst_dir = CONFIG_DIR / "backups"
     dst_dir.mkdir(parents=True, exist_ok=True)
-    dst = dst_dir / f"{INDEX}.{time.strftime('%Y%m%d-%H%M%S')}"
+    prefix = "" if rt.app.key == "jianying" else f"{rt.app.key}-"
+    dst = dst_dir / f"{prefix}{INDEX}.{time.strftime('%Y%m%d-%H%M%S')}"
     shutil.copy2(src, dst)
     return dst
 
@@ -38,16 +40,19 @@ def unique_folder(rt: Runtime, name: str) -> Path:
 
 
 def publish(rt: Runtime, built: Path, name: str | None = None) -> dict:
-    """Copy a built draft folder into JianYing's project root and register it."""
+    """Copy a built draft folder into the app's project root and register it."""
     built = Path(built)
     if not (built / "draft_info.json").is_file():
         raise JyrError(f"{built} is not a built draft folder")
-    if jianying_running():
-        raise JyrError("JianYing is running. Quit it completely (⌘Q) first — it rewrites the index on exit.")
+    if app_running(rt):
+        raise JyrError(quit_hint(rt))
     index_path = rt.draft_root / INDEX
     if not index_path.is_file():
-        raise JyrError(f"{index_path} not found; open JianYing once so it creates its project folder")
+        raise JyrError(f"{index_path} not found; open {rt.app.label} once so it creates its project folder")
     meta_jyr = json.loads((built / ".jyr.json").read_text()) if (built / ".jyr.json").exists() else {}
+    if meta_jyr.get("app", "jianying") != rt.app.key and "edited_from" not in meta_jyr:
+        raise JyrError(f"{built.name} was built for {meta_jyr.get('app', 'jianying')}, not {rt.app.key}; "
+                       f"rebuild it with `jyr --app {rt.app.key} build`")
     target = unique_folder(rt, name or meta_jyr.get("name") or built.name)
     backup = backup_index(rt)
     shutil.copytree(built, target)
@@ -118,8 +123,8 @@ def _fix_paths(rt: Runtime, folder: Path) -> None:
 def trash(rt: Runtime, names: list[str]) -> dict:
     """Take drafts off the home screen and move their folders to ~/.jyr/trash/<time>/.
     Nothing is deleted; `restore` puts them back."""
-    if jianying_running():
-        raise JyrError("JianYing is running. Quit it completely (⌘Q) first.")
+    if app_running(rt):
+        raise JyrError(quit_hint(rt))
     index_path = rt.draft_root / INDEX
     index = json.loads(index_path.read_text("utf-8"))
     folders = {str(rt.draft_root / n) for n in names}
@@ -143,8 +148,8 @@ def trash(rt: Runtime, names: list[str]) -> dict:
 
 def restore(rt: Runtime, bin_dir: Path) -> dict:
     """Undo one `trash`: move folders back and re-add their home-screen entries."""
-    if jianying_running():
-        raise JyrError("JianYing is running. Quit it completely (⌘Q) first.")
+    if app_running(rt):
+        raise JyrError(quit_hint(rt))
     bin_dir = Path(bin_dir)
     entries = json.loads((bin_dir / "index_entries.json").read_text("utf-8"))
     index_path = rt.draft_root / INDEX

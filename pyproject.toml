@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "easy-jianying"
 version = "0.1.0"
-description = "Write JianYing (剪映) desktop drafts from code on macOS — for agents and scripts."
+description = "Write JianYing (剪映) / CapCut desktop drafts from code on macOS — for agents and scripts."
 readme = "README.md"
 license = {file = "LICENSE.md"}
 requires-python = ">=3.10"
@@ -22,4 +22,4 @@ jyr = "jyr.cli:main"
 packages = ["jyr", "jyr.recipes"]
 
 [tool.setuptools.package-data]
-jyr = ["jyr_crypt.cpp", "data/resources.json"]
+jyr = ["jyr_crypt.cpp", "data/resources.json", "data/resources.capcut.json"]

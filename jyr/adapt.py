@@ -49,8 +49,25 @@ def _samples(rt: runtime.Runtime, limit: int = 40) -> list[dict]:
     return out
 
 
+def adapt_capcut(rt: runtime.Runtime) -> dict:
+    """CapCut: no codec, so adapting is only reading the timeline schema its own drafts use."""
+    rep = {"target": "capcut", "version": rt.version, "already_known": rt.version in runtime.CAPCUT_VERSIONS}
+    tv = runtime._version_from_drafts(rt.app, rt.version, rt.draft_root)
+    if not tv:
+        rep["result"] = (f"NEED ONE SAMPLE: open CapCut {rt.version}, create a blank project, wait a few seconds, "
+                         "quit; then run `jyr --app capcut adapt` again.")
+        return rep
+    profile = {"timeline_version": tv, "cipher": "plain", "adapted_at": time.strftime("%Y-%m-%d %H:%M")}
+    rep["timeline_version"] = tv
+    rep["profile_saved"] = str(runtime.save_user_profile(rt.version, profile, rt.app))
+    rep["result"] = "OK — build a small plan, publish it, and open it in CapCut to be sure."
+    return rep
+
+
 def adapt(auto: bool = False) -> dict:
     rt = runtime.detect()
+    if rt.is_capcut:
+        return adapt_capcut(rt)
     rep = {"version": rt.version, "dylib_sha256": rt.dylib_sha256, "already_known": rt.known, "steps": {}}
     syms = _symbols(rt)
     rep["steps"]["codec_symbols"] = syms

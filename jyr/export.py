@@ -37,6 +37,9 @@ def _stable(p: Path, secs: float = 3) -> bool:
 
 def export(draft: str, out: str | None = None, quit_after: bool = True, timeout: float | None = None) -> dict:
     rt = runtime.detect()
+    if rt.is_capcut:
+        raise JyrError("`jyr export` drives the app's UI and is JianYing-only; jyr never automates CapCut. "
+                       "Export in CapCut yourself (Export button, top right).")
     folder = reader.resolve(rt, draft)
     info = reader.inspect(rt, folder)
     if runtime.jianying_running():

@@ -197,7 +197,7 @@ def cmd_batch(a) -> int:
 def cmd_fonts(a) -> int:
     from .catalog import Catalog
     from .recipes.fonts import STYLE_HINTS, candidates
-    cat = Catalog()
+    cat = Catalog(rt=runtime.detect())
     for role in ([a.role] if a.role else list(STYLE_HINTS)):
         names = [f"{e['name']}({e['category']})" for e in candidates(cat, role)[: a.limit]]
         print(f"{role:<12} " + "  ".join(names))

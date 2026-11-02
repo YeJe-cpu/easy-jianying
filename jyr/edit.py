@@ -16,7 +16,7 @@ from pathlib import Path
 from . import crypto, home
 from .draft import Draft
 from .reader import materials_by_id, text_of
-from .runtime import Runtime, jianying_running
+from .runtime import Runtime, app_running
 from .srt import parse_srt
 from .util import JyrError, atomic_write, dump
 
@@ -34,8 +34,8 @@ class Session:
     """An editable copy of a draft."""
 
     def __init__(self, rt: Runtime, src: Path, work: Path | None = None):
-        if jianying_running():
-            raise JyrError("quit JianYing first — it holds open drafts and rewrites them on exit")
+        if app_running(rt):
+            raise JyrError(f"quit {rt.app.label} first — it holds open drafts and rewrites them on exit")
         self.rt = rt
         self.src = Path(src)
         self.work = Path(work or tempfile.mkdtemp(prefix="jyr-edit-")) / self.src.name

@@ -1,0 +1,177 @@
+{
+"schema": "jyr-resources/1",
+"app": "capcut",
+"note": "names and ids of free CapCut resources (is_vip 0 in CapCut's own drafts); files are downloaded by CapCut",
+"cards": [
+{
+"kind": "font",
+"name": "en",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/en.ttf",
+"template": {},
+"rank": 1
+},
+{
+"kind": "font",
+"name": "CapCutSansText-Bold",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/CapCutSansText-Bold.otf",
+"template": {},
+"rank": 2
+},
+{
+"kind": "font",
+"name": "CapCutSansText-Medium",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/CapCutSansText-Medium.otf",
+"template": {},
+"rank": 3
+},
+{
+"kind": "font",
+"name": "CapCutSansText-Regular",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/CapCutSansText-Regular.otf",
+"template": {},
+"rank": 4
+},
+{
+"kind": "font",
+"name": "NotoSans-Regular",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/NotoSans-Regular.ttf",
+"template": {},
+"rank": 5
+},
+{
+"kind": "font",
+"name": "NotoSansArabic-Regular",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/NotoSansArabic-Regular.ttf",
+"template": {},
+"rank": 6
+},
+{
+"kind": "font",
+"name": "NotoSansBengali-Regular",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/NotoSansBengali-Regular.ttf",
+"template": {},
+"rank": 7
+},
+{
+"kind": "font",
+"name": "NotoSansHebrew-Regular",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/NotoSansHebrew-Regular.ttf",
+"template": {},
+"rank": 8
+},
+{
+"kind": "font",
+"name": "NotoSansKhmer-Regular",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/NotoSansKhmer-Regular.ttf",
+"template": {},
+"rank": 9
+},
+{
+"kind": "font",
+"name": "NotoSansMyanmar-Regular",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/NotoSansMyanmar-Regular.ttf",
+"template": {},
+"rank": 10
+},
+{
+"kind": "font",
+"name": "NotoSansSymbols2-Regular",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/NotoSansSymbols2-Regular.ttf",
+"template": {},
+"rank": 11
+},
+{
+"kind": "font",
+"name": "NotoSansThai-Regular",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/NotoSansThai-Regular.ttf",
+"template": {},
+"rank": 12
+},
+{
+"kind": "font",
+"name": "ja",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/ja.ttf",
+"template": {},
+"rank": 13
+},
+{
+"kind": "font",
+"name": "ko",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/ko.ttf",
+"template": {},
+"rank": 14
+},
+{
+"kind": "font",
+"name": "th",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/th.ttf",
+"template": {},
+"rank": 15
+},
+{
+"kind": "font",
+"name": "zh-hans",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/zh-hans.ttf",
+"template": {},
+"rank": 16
+},
+{
+"kind": "font",
+"name": "zh-hant",
+"resource_id": "",
+"category": "内置字体",
+"vip": false,
+"path": "@app/Contents/Resources/Font/SystemFont/zh-hant.ttf",
+"template": {},
+"rank": 17
+}
+]
+}

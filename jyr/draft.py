@@ -55,13 +55,14 @@ class Track:
 
 class Draft:
     def __init__(self, name: str, width: int = 1920, height: int = 1080, fps: float = 30.0,
-                 timeline_version: str = "189.0.0", app_version: str = "11.6.0"):
+                 timeline_version: str = "189.0.0", app_version: str = "11.6.0", platform: dict | None = None):
         if width <= 0 or height <= 0:
             raise JyrError("canvas width/height must be positive")
         self.name = name
         self.width, self.height, self.fps = int(width), int(height), float(fps)
         self.timeline_version = timeline_version
         self.app_version = app_version
+        self.platform = platform  # None = JianYing
         self.id = new_id()
         self.tracks: list[Track] = []
         self.materials: dict[str, list] = {}
@@ -399,7 +400,8 @@ class Draft:
         return max((t.end_us for t in self.tracks), default=0)
 
     def to_json(self, platform: dict | None = None) -> dict:
-        plat = platform or {"os": "mac", "app_id": 3704, "app_version": self.app_version, "app_source": "lv"}
+        plat = platform or self.platform or {"os": "mac", "app_id": 3704, "app_version": self.app_version,
+                                             "app_source": "lv"}
         return {
             "id": self.id,
             "version": DRAFT_FORMAT_VERSION,

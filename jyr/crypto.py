@@ -33,6 +33,8 @@ def bridge_path(rt: Runtime) -> Path:
 
 
 def ensure_bridge(rt: Runtime) -> Path:
+    if rt.is_capcut:
+        raise JyrError("CapCut drafts are plaintext; jyr never builds a bridge against CapCut's libraries")
     exe = bridge_path(rt)
     if exe.is_file():
         return exe
@@ -71,7 +73,7 @@ def _run(rt: Runtime, mode: str, pairs: list[tuple[Path, Path]]) -> list[bool]:
 def plain_mode(rt: Runtime) -> bool:
     """Versions whose codec we cannot use (11.7+) get plaintext drafts, which JianYing
     opens and re-encrypts itself on first save."""
-    return os.environ.get("JYR_CIPHER") == "plain" or rt.profile.get("cipher") == "plain"
+    return rt.is_capcut or os.environ.get("JYR_CIPHER") == "plain" or rt.profile.get("cipher") == "plain"
 
 
 def seal(rt: Runtime, data: bytes) -> bytes:
@@ -85,6 +87,9 @@ def is_plain_json(data: bytes) -> bool:
 def decrypt_bytes(rt: Runtime, data: bytes) -> bytes:
     if is_plain_json(data):
         return data
+    if rt.is_capcut:
+        raise JyrError("this CapCut file is not plaintext JSON — damaged, or from a CapCut that encrypts drafts "
+                       "(jyr does not decrypt CapCut files)")
     with tempfile.TemporaryDirectory(prefix="jyr-") as d:
         src, dst = Path(d, "in"), Path(d, "out")
         src.write_bytes(data)
@@ -122,6 +127,9 @@ def decrypt_many(rt: Runtime, files: list[Path], out_dir: Path) -> dict[Path, Pa
             result[f] = dst
         else:
             todo.append((Path(f), dst))
+    if rt.is_capcut:
+        result.update({src: None for src, _ in todo})
+        return result
     for (src, dst), ok in zip(todo, _run(rt, "dec", todo) if todo else []):
         result[src] = dst if ok else None
     return result

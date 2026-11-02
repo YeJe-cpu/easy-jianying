@@ -59,6 +59,29 @@ Instead we hand JianYing an unlocked draft and let it lock the draft itself. It 
 
 The tool detects your version automatically.
 
+## CapCut
+
+Same plan, add `--app capcut`, get a CapCut draft:
+
+```bash
+jyr --app capcut doctor
+jyr --app capcut build examples/showcase.plan.json --out /tmp/cc-demo --publish --name "my first CapCut draft"
+jyr --app capcut inspect "my first CapCut draft"   # CapCut drafts are plaintext: read, export SRT, edit a copy
+```
+
+With only one of the two apps installed, `--app` is optional; with both, JianYing is the default.
+
+CapCut drafts are not encrypted, so on the CapCut side the tool **only reads and writes draft files**. It never calls a library inside CapCut and never drives its UI.
+
+| | JianYing 11.7+ | CapCut 9.4 (tested) |
+|---|:---:|:---:|
+| Create drafts, add to home screen | ✅ | ✅ |
+| Read / export subtitles / edit a copy | ❌ | ✅ |
+| `jyr export` | ✅ (drives JianYing's UI) | ❌ export in CapCut yourself |
+| Built-in resources | 375 common ones | **free ones only** (as CapCut marks them); for now CapCut's bundled fonts |
+
+CapCut's resource IDs only partly match JianYing's, so it has its own catalog: anything you have used once in CapCut becomes usable after `jyr --app capcut catalog scan`. The scan reads each draft's `key_value.json` to tell free from Pro: `"auto"` only picks free ones, naming a Pro one in a plan gives a warning, and `catalog list --free` lists only free ones.
+
 ## Quick start
 
 macOS + JianYing Pro, Python 3.10+, ffmpeg, Xcode command line tools.
@@ -83,7 +106,7 @@ Quit JianYing before publishing; the new draft appears first on its home screen.
 
 ## Limits
 
-macOS JianYing Pro only, tested on an Intel Mac with JianYing 11.6 and 11.7. Apple Silicon should work but hasn't been tested; Windows and CapCut are untested. On 11.7+ the tool writes drafts but cannot read existing ones. Not yet supported: crop, chroma key, color grading, curve speed, styled text and audio effects. **Unofficial; not affiliated with ByteDance.** JianYing's terms of use apply.
+macOS only: tested on an Intel Mac with JianYing 11.6 / 11.7 and CapCut 9.4.1. Apple Silicon should work but hasn't been tested; Windows is untested. No UI automation for CapCut: no `jyr export`, no `adapt --auto` (after a CapCut update, create one blank project in it and run `jyr --app capcut adapt`). Whether CapCut downloads a missing effect by ID, as JianYing does, has not been checked on another machine yet. On 11.7+ the tool writes drafts but cannot read existing ones. Not yet supported: crop, chroma key, color grading, curve speed, styled text and audio effects. **Unofficial; not affiliated with ByteDance.** JianYing's terms of use apply.
 
 ## Credits
 

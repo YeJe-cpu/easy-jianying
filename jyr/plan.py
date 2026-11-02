@@ -54,15 +54,22 @@ class Compiler:
     @property
     def catalog(self) -> Catalog:
         if self._catalog is None:
-            self._catalog = Catalog()
+            self._catalog = Catalog(rt=self.rt)
         return self._catalog
+
+    def find(self, kind: str, name: str, **kw) -> dict:
+        e = self.catalog.find(kind, name, **kw)
+        if e.get("vip"):
+            self.warnings.append(f"{kind} {e['name']!r} is a CapCut Pro resource; exporting may need Pro")
+        return e
 
     def compile(self, plan: dict) -> Draft:
         if not isinstance(plan.get("tracks"), list) or not plan["tracks"]:
             raise PlanError("plan needs a non-empty `tracks` list")
         w, h, fps = _canvas(plan)
         d = Draft(plan.get("name") or "jyr draft", w, h, fps,
-                  timeline_version=self.rt.timeline_version or "189.0.0", app_version=self.rt.version)
+                  timeline_version=self.rt.timeline_version or "189.0.0", app_version=self.rt.version,
+                  platform=self.rt.platform)
         first_video = True
         for ti, tp in enumerate(plan["tracks"]):
             kind = tp.get("type")
@@ -122,7 +129,7 @@ class Compiler:
                 if cp.get("mask"):
                     self._mask(d, seg, cp["mask"])
                 for name in cp.get("effects", []) or []:
-                    d.add_effect_on(seg, self.catalog.find("effect", name))
+                    d.add_effect_on(seg, self.find("effect", name))
                 self._anims(d, seg, cp.get("anim"), "video")
             self._keyframes(d, seg, cp.get("keyframes"))
             return seg, start + dur
@@ -141,7 +148,7 @@ class Compiler:
                         raise JyrError(f"font file not found: {f}")
                     font_path = f
                 else:
-                    e = self.catalog.find("font", f)
+                    e = self.find("font", f)
                     font_path, font_id, font_title = e["path"], e.get("resource_id", ""), e["name"]
             stroke = st.get("stroke") or {}
             seg = d.add_text(track, str(cp.get("text", "")), start, dur, size=float(st.get("size", 8)),
@@ -158,9 +165,9 @@ class Compiler:
             return seg, start + dur
         dur = us(cp.get("duration", 3))
         if kind in ("effect", "filter"):
-            seg = d.add_track_effect(track, self.catalog.find(kind, cp.get("name", "")), start, dur)
+            seg = d.add_track_effect(track, self.find(kind, cp.get("name", "")), start, dur)
         else:
-            seg = d.add_sticker(track, self.catalog.find("sticker", cp.get("name", "")), start, dur,
+            seg = d.add_sticker(track, self.find("sticker", cp.get("name", "")), start, dur,
                                 transform=cp.get("transform"))
             self._anims(d, seg, cp.get("anim"), "text")
             self._keyframes(d, seg, cp.get("keyframes"))
@@ -170,7 +177,7 @@ class Compiler:
         shape = m.get("shape", "circle")
         name = MASK_SHAPES.get(shape, shape)
         pool = [e for e in self.catalog.list("mask") if e.get("available") and (e.get("shape") == shape or e["name"] == name)]
-        res = pool[0] if pool else self.catalog.find("mask", name)
+        res = pool[0] if pool else self.find("mask", name)
         d.add_mask(seg, res, width=m.get("width", 0.5), height=m.get("height", 0.5), x=m.get("x", 0.0),
                    y=m.get("y", 0.0), feather=m.get("feather", 0.0), rotation=m.get("rotation", 0.0),
                    invert=bool(m.get("invert")), round_corner=m.get("round_corner", 0.0))
@@ -180,7 +187,7 @@ class Compiler:
             if slot not in ("in", "out", "loop"):
                 raise JyrError(f"anim slot {slot!r}: use in / out / loop")
             spec = {"name": spec} if isinstance(spec, str) else spec
-            res = self.catalog.find("animation", spec["name"], slot=slot, target=target)
+            res = self.find("animation", spec["name"], slot=slot, target=target)
             d.add_animation(seg, res, slot, us(spec["duration"]) if "duration" in spec else None)
 
     def _keyframes(self, d: Draft, seg: dict, kf: dict | None) -> None:
@@ -195,7 +202,7 @@ class Compiler:
             st = s["target_timerange"].get("start", 0)
             if abs(st - t) > 1000:
                 self.warnings.append(f"{where}: main track has a gap/overlap at {t / 1e6:.3f}s; "
-                                     "JianYing's magnetic main track may close it. Set allow_gaps to silence.")
+                                     "the app's magnetic main track may close it. Set allow_gaps to silence.")
                 return
             t = st + s["target_timerange"]["duration"]
 
@@ -211,7 +218,7 @@ class Compiler:
             end = seg["target_timerange"].get("start", 0) + seg["target_timerange"]["duration"]
             if abs(nxt["target_timerange"].get("start", 0) - end) > 1000:
                 raise PlanError(f"{w}: transition needs the next clip to start right where this one ends")
-            res = self.catalog.find("transition", tr.get("name", "叠化"))
+            res = self.find("transition", tr.get("name", "叠化"))
             dur = us(tr["duration"]) if "duration" in tr else (res.get("default_duration_us") or 500000)
             limit = min(seg["target_timerange"]["duration"], nxt["target_timerange"]["duration"]) // 2
             if dur > limit:

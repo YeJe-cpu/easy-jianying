@@ -1,4 +1,8 @@
-"""Write a Draft to a folder laid out the way JianYing lays out its own."""
+"""Write a Draft to a folder laid out the way JianYing / CapCut lay out their own.
+
+The two apps use the same layout; only draft_info.platform and the timeline
+schema version (both taken from the Runtime) differ.
+"""
 
 from __future__ import annotations
 
@@ -96,14 +100,14 @@ def write(rt: Runtime, draft: Draft, folder: Path, pack: bool = False, overwrite
         if not overwrite:
             raise JyrError(f"{folder} already exists")
         if (folder / "draft_meta_info.json").exists() and folder.parent == rt.draft_root:
-            raise JyrError("refusing to overwrite a draft inside JianYing's project folder")
+            raise JyrError(f"refusing to overwrite a draft inside {rt.app.label}'s project folder")
         shutil.rmtree(folder)
     folder.mkdir(parents=True)
     if pack:
         pack_media(draft, folder)
     created = now_us()
     draft_id = new_id()
-    info = draft.to_json(platform={"os": "mac", "app_id": 3704, "app_version": rt.version, "app_source": "lv"})
+    info = draft.to_json(platform=rt.platform)
     info_bytes = dump(info).encode()
     enc_info = crypto.seal(rt, info_bytes)
 
@@ -148,7 +152,7 @@ def write(rt: Runtime, draft: Draft, folder: Path, pack: bool = False, overwrite
         shutil.copy2(folder / "draft_cover.jpg", tl_dir / "draft_cover.jpg")
     (folder / ".jyr.json").write_text(json.dumps(
         {"draft_id": draft_id, "timeline_id": draft.id, "name": draft.name, "created_us": created,
-         "duration_us": draft.duration, "app_version": rt.version}, ensure_ascii=False, indent=1))
+         "duration_us": draft.duration, "app": rt.app.key, "app_version": rt.version}, ensure_ascii=False, indent=1))
     return folder
 
 

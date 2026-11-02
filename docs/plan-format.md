@@ -8,6 +8,8 @@
 ```
 `canvas` 预设：`16:9` `9:16` `1:1` `4:3` `3:4` `2.35:1`。
 
+同一份计划剪映和 CapCut 通用：`jyr build plan.json ...` 给剪映，`jyr --app capcut build plan.json ...` 给 CapCut。区别只在资源名——资源从各自的资源目录里找（`jyr [--app capcut] catalog list`），CapCut 里没用过的转场 / 动画名字会报错并列出可用的。
+
 ## 轨道类型
 
 | type | 说明 |
@@ -15,7 +17,7 @@
 | `video` | 第一条是主轨（应从 0 连续，否则给警告；`"allow_gaps": true` 关掉警告），后面的是画中画 |
 | `audio` | 音乐、配音、音效 |
 | `text` | 标题/花字 |
-| `subtitle` | 剪映「识别字幕」轨（默认白字黑描边、位于下方） |
+| `subtitle` | 剪映 / CapCut 的「识别字幕」轨（默认白字黑描边、位于下方） |
 | `effect` / `filter` | 特效轨 / 滤镜轨 |
 | `sticker` | 贴纸 |
 
@@ -55,4 +57,6 @@
 ## effect / filter / sticker 片段
 `{"name": "资源名或 auto", "start", "duration"}`，sticker 另有 `transform`、`anim`、`keyframes`。
 
-资源名查询：`jyr catalog list transition|mask|effect|filter|animation|font|sticker`。
+资源名查询：`jyr catalog list transition|mask|effect|filter|animation|font|sticker`；CapCut 加 `--app capcut`，`--free` 只看免费的。
+
+CapCut 的资源有免费 / Pro 之分（来自 CapCut 自己在草稿 `key_value.json` 里记的 `is_vip`）：`"auto"` 只挑免费的；点名用了 Pro 资源，`build` 的 `warnings` 里会提醒“导出可能需要 Pro”。没有记录的资源算“未知”，不会进内置包。

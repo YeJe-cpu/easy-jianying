@@ -6,7 +6,7 @@
 
 转场、蒙版、关键帧、字幕、卡点、口播粗剪，都会变成剪映里正常的轨道和片段，可以拖、可以改，改完直接导出。
 
-[English](README.en.md) · [三分钟上手](#三分钟上手) · [它是怎么做到的](docs/how-it-works.md) · [剪映 11.7 分水岭](#剪映-117-是一道分水岭)
+[English](README.en.md) · [三分钟上手](#三分钟上手) · [它是怎么做到的](docs/how-it-works.md) · [剪映 11.7 分水岭](#剪映-117-是一道分水岭) · [CapCut 国际版](#capcut-国际版)
 
 <img src="docs/media/hero.gif" width="640" alt="一份 JSON 计划生成的剪映草稿，由剪映自己导出">
 
@@ -72,6 +72,29 @@ Easy 剪映做的就是这一步：**AI 写剪辑计划 → 生成剪映草稿 �
 
 工具会自动识别剪映版本，不需要手动设置。需要修改已有草稿的，可以留在（或退回）11.6；只是往剪映里放新草稿的，用最新版就行。
 
+## CapCut 国际版
+
+同一份计划，加一个 `--app capcut`，就是一份 CapCut 草稿：
+
+```bash
+jyr --app capcut doctor
+jyr --app capcut build examples/showcase.plan.json --out /tmp/cc-demo --publish --name "我的第一个 CapCut 草稿"
+jyr --app capcut inspect "我的第一个 CapCut 草稿"     # CapCut 草稿是明文，读、导字幕、改副本都行
+```
+
+只装了一个就自动用它，不写 `--app` 也行；两个都装时默认剪映。
+
+CapCut 的草稿本来就不加密，所以这一侧**只读写草稿文件**：不调用 CapCut 程序里的任何库，也不模拟点击它的界面。
+
+| | 剪映 11.7+ | CapCut 9.4（实测） |
+|---|:---:|:---:|
+| 生成新草稿、放到首页 | ✅ | ✅ |
+| 读取 / 导出字幕 / 改副本 | ❌ | ✅ |
+| `jyr export` 导出成片 | ✅（驱动剪映界面） | ❌ 在 CapCut 里自己点导出 |
+| 内置资源 | 375 个常用资源 | **只放 CapCut 标记为免费的**，目前是 CapCut 自带字体 |
+
+CapCut 的资源编号和剪映不完全一样，所以它有自己的资源目录：在 CapCut 里用过一次的转场、动画、字体，`jyr --app capcut catalog scan` 一扫就能用。扫描时会读每个草稿里的 `key_value.json`，区分免费和 Pro：`"auto"` 只挑免费的，计划里点名用了 Pro 资源会给出提醒；`catalog list --free` 只列免费的。
+
 ## 三分钟上手
 
 **你需要**：Mac + 剪映专业版、Python 3.10+、ffmpeg、Xcode 命令行工具。
@@ -133,7 +156,8 @@ jyr build examples/showcase.plan.json --out /tmp/jyr-demo --publish --name "我�
 
 ## 边界（先说清楚）
 
-- **只支持 macOS 剪映专业版**，在 Intel Mac + 剪映 11.6 / 11.7 上实测。Apple Silicon 理论可行，暂未实测；Windows 和 CapCut 国际版未测试。
+- **只支持 macOS**：剪映专业版在 Intel Mac + 11.6 / 11.7 上实测，CapCut 国际版在 Intel Mac + 9.4.1 上实测。Apple Silicon 理论可行，暂未实测；Windows 未测试。
+- **CapCut 一侧不做界面自动化**：没有 `jyr export`、没有 `adapt --auto`；CapCut 升级后，打开新版建一个空项目再退出，`jyr --app capcut adapt` 会从它自己存的草稿里学新版本号。CapCut 缺资源时会不会像剪映一样按编号自动下载，还没在别的机器上验证过。
 - **剪映 11.7 起只能"写"不能"读"**，详见上面的分水岭。
 - 还没做的：裁剪、抠图、调色、曲线变速、花字、音频特效。
 - 识别字幕会有错字，可以批量替换，也可以接你自己的识别服务。
