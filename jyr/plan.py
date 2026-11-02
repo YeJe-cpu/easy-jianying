@@ -9,6 +9,7 @@ shown in JianYing's UI (转场「叠化」, 蒙版「圆形」, 动画「渐显�
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from .catalog import Catalog
@@ -45,27 +46,40 @@ def _canvas(plan: dict) -> tuple[int, int, float]:
 
 
 class Compiler:
-    def __init__(self, rt: Runtime, catalog: Catalog | None = None, base_dir: str | Path | None = None):
+    def __init__(self, rt: Runtime, catalog: Catalog | None = None, base_dir: str | Path | None = None,
+                 member: bool | None = None):
         self.rt = rt
         self.base_dir = Path(base_dir).resolve() if base_dir else None
         self._catalog = catalog
+        # Paid resources only for a user who says they are a member of the app (see catalog.py).
+        self.member = member if member is not None else os.environ.get("JYR_MEMBER") == "1"
+        if catalog is not None and self.member:
+            catalog.member = True
         self.warnings: list[str] = []
 
     @property
     def catalog(self) -> Catalog:
         if self._catalog is None:
-            self._catalog = Catalog(rt=self.rt)
+            self._catalog = Catalog(rt=self.rt, member=self.member)
         return self._catalog
 
     def find(self, kind: str, name: str, **kw) -> dict:
-        e = self.catalog.find(kind, name, **kw)
-        if e.get("vip"):
-            self.warnings.append(f"{kind} {e['name']!r} is a paid resource (会员 / Pro); the app applies its own membership rules to it")
+        return self._warn_paid(kind, self.catalog.find(kind, name, **kw))
+
+    def _warn_paid(self, kind: str, e: dict) -> dict:
+        if e.get("vip") is not False:
+            what = "paid (会员 / Pro)" if e.get("vip") else "unmarked (possibly paid)"
+            self.warnings.append(f"{kind} {e['name']!r} is a {what} resource; {self.rt.app.label} applies its own "
+                                 "membership rules when you open and render the draft")
         return e
 
     def compile(self, plan: dict) -> Draft:
         if not isinstance(plan.get("tracks"), list) or not plan["tracks"]:
             raise PlanError("plan needs a non-empty `tracks` list")
+        if plan.get("member"):
+            self.member = True
+            if self._catalog is not None:
+                self._catalog.member = True
         w, h, fps = _canvas(plan)
         d = Draft(plan.get("name") or "jyr draft", w, h, fps,
                   timeline_version=self.rt.timeline_version or "189.0.0", app_version=self.rt.version,
@@ -176,8 +190,9 @@ class Compiler:
     def _mask(self, d: Draft, seg: dict, m: dict) -> None:
         shape = m.get("shape", "circle")
         name = MASK_SHAPES.get(shape, shape)
-        pool = [e for e in self.catalog.list("mask") if e.get("available") and (e.get("shape") == shape or e["name"] == name)]
-        res = pool[0] if pool else self.find("mask", name)
+        pool = [e for e in self.catalog.list("mask") if e.get("available") and self.catalog.allowed(e)
+                and (e.get("shape") == shape or e["name"] == name)]
+        res = self._warn_paid("mask", pool[0]) if pool else self.find("mask", name)
         d.add_mask(seg, res, width=m.get("width", 0.5), height=m.get("height", 0.5), x=m.get("x", 0.0),
                    y=m.get("y", 0.0), feather=m.get("feather", 0.0), rotation=m.get("rotation", 0.0),
                    invert=bool(m.get("invert")), round_corner=m.get("round_corner", 0.0))

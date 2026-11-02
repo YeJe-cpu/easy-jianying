@@ -33,7 +33,7 @@ jyr publish /abs/work/build1 --name 名字      # App 必须完全退出
 ```
 字段全集见 `docs/plan-format.md`。要点：
 - 片段不写 `start` 就接在同轨上一段后面；不写 `duration` 就用到素材结尾。
-- 资源用界面里的中文名，**内置只有免费资源**（剪映 175 个：转场 推近/叠化/闪黑/滑动/翻页、特效、贴纸、字体等）。名字找不到时报错会列出可用项；`jyr catalog list transition --free` 也能看。会员效果、蒙版、文字动画：告诉用户在剪映里手动加。
+- 资源用界面里的中文名。**默认只能用免费资源**（剪映 175 个：转场 推近/叠化/闪黑/滑动/翻页、特效、贴纸、字体等）。用户说自己是剪映会员 / CapCut Pro 时，计划顶层加 `"member": true`（或 `jyr --member build ...`），会员转场、蒙版、文字动画也能用；没声明就点名会员资源会报错并提示。`jyr catalog list transition` 能看到每个资源是 free / paid / ?。
 - `"auto"` = 免费资源里你最常用的那个；字体 `"auto:title|subtitle|body|handwriting|cute"`。
 - 第一条 video 轨是主轨，应从 0 开始、连续；画中画放后面的 video 轨。
 - 转场挂在前一段上，后面必须紧接下一段；末段不能有转场。

@@ -1,4 +1,4 @@
-"""Build the built-in resource cards — free resources only — for JianYing or CapCut.
+"""Build the built-in resource cards for JianYing or CapCut, each marked free / paid / no record.
 
 A card is what the app itself writes about a transition / mask / effect /
 animation / sticker / font: its name, resource id and the fields of its
@@ -7,9 +7,11 @@ needs them (tested 2026-10-30 on JianYing 11.7). Machine-specific bits are
 removed: absolute paths become paths relative to the app's "User Data" or app
 bundle, signed preview URLs and per-use ids are dropped, usage counts become ranks.
 
-Only free resources go in. "Free" means the app itself recorded is_vip "0" for
-that resource id in a draft's plain key_value.json, or a font bundled inside
-the app (@app/...). Paid resources and resources with no record are left out.
+"Free" means the app itself recorded is_vip "0" for that resource id in a
+draft's plain key_value.json, or a font bundled inside the app (@app/...).
+Every card carries "vip": false (free), true (paid) or null (no record). jyr
+uses only free ones unless the user declares membership (--member); --free-only
+leaves the others out of the pack altogether.
 
 Input is a catalog (`jyr [--app capcut] catalog scan`) or an existing pack
 (cards); free/paid flags come from the entries themselves or from the
@@ -18,7 +20,7 @@ key_value.json files under --key-values (default: the app's project folder).
   jyr/data/resources.json         JianYing
   jyr/data/resources.capcut.json  CapCut
 
-usage: python3 tools/build_resource_pack.py [--app jianying|capcut] [--key-values DIR] [--out FILE] [source.json]
+usage: python3 tools/build_resource_pack.py [--app jianying|capcut] [--key-values DIR] [--free-only] [--out FILE] [source.json]
 """
 import argparse
 import json
@@ -31,6 +33,7 @@ ap.add_argument("--app", choices=["jianying", "capcut"], default="jianying")
 ap.add_argument("source", nargs="?", help="catalog or pack JSON")
 ap.add_argument("--key-values", help="folder of draft folders whose key_value.json give free/paid flags")
 ap.add_argument("--out", help="write here instead of jyr/data/")
+ap.add_argument("--free-only", action="store_true", help="leave paid and unrecorded resources out")
 args = ap.parse_args()
 APP = args.app
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,10 +106,10 @@ for e in entries:
     if e["kind"] == "font" and not (e.get("resource_id") or "/Contents/Resources/Font/" in rel(e.get("path", ""))):
         continue
     p = paid(e)
-    if p is not False:
-        left_out["paid" if p else "no free record"] += 1
+    if p is not False and args.free_only:
+        left_out["paid" if p else "no record"] += 1
         continue
-    by_kind[e["kind"]].append(e)
+    by_kind[e["kind"]].append(dict(e, vip=p))
 for kind, items in by_kind.items():
     items.sort(key=lambda e: (e.get("rank", 0), -e.get("seen", 0)))
     seen_keys = set()
@@ -119,14 +122,14 @@ for kind, items in by_kind.items():
         for k in ("slot", "target", "shape", "default_duration_us"):
             if k in e:
                 card[k] = e[k]
-        card["vip"] = False
+        card["vip"] = e["vip"]
         card["path"] = rel(e.get("path", ""))
         card["template"] = clean(e.get("template", {}))
         card["rank"] = len(seen_keys)
         cards.append(card)
 label = {"jianying": "JianYing", "capcut": "CapCut"}[APP]
-note = (f"names and ids of free {label} resources (is_vip 0 in {label}'s own key_value.json, or fonts bundled "
-        f"with {label}); files are downloaded by {label}")
+note = (f"names and ids of {label} resources; vip false = free (is_vip 0 in {label}'s own key_value.json, or a "
+        f"font bundled with {label}), true = paid, null = no record; files are downloaded by {label}")
 blob = json.dumps({"schema": "jyr-resources/2", "app": APP, "note": note, "cards": cards}, ensure_ascii=False, indent=0)
 assert "/Users/" not in blob and "x-signature" not in blob, "private data left in the pack"
 OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -134,4 +137,8 @@ OUT.write_text(blob)
 counts = defaultdict(int)
 for c in cards:
     counts[c["kind"]] += 1
-print(json.dumps({"cards": len(cards), "by_kind": counts, "left_out": left_out, "out": str(OUT)}, ensure_ascii=False))
+tiers = defaultdict(int)
+for c in cards:
+    tiers[{False: "free", True: "paid", None: "no record"}[c["vip"]]] += 1
+print(json.dumps({"cards": len(cards), "tiers": tiers, "by_kind": counts, "left_out": left_out, "out": str(OUT)},
+                 ensure_ascii=False))

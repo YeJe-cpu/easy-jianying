@@ -1,8 +1,153 @@
 {
-"schema": "jyr-resources/1",
+"schema": "jyr-resources/2",
 "app": "capcut",
-"note": "names and ids of free CapCut resources (is_vip 0 in CapCut's own drafts); files are downloaded by CapCut",
+"note": "names and ids of CapCut resources; vip false = free (is_vip 0 in CapCut's own key_value.json, or a font bundled with CapCut), true = paid, null = no record; files are downloaded by CapCut",
 "cards": [
+{
+"kind": "animation",
+"name": "放大",
+"resource_id": "6798332733694153230",
+"category": "in_fav",
+"slot": "in",
+"target": "video",
+"default_duration_us": 200000,
+"vip": null,
+"path": "@userdata/Cache/effect/6798332733694153230/028a77e121c22a4dd130a46a0ed90714",
+"template": {
+"type": "in",
+"start": 0,
+"path": "@userdata/Cache/effect/6798332733694153230/028a77e121c22a4dd130a46a0ed90714",
+"platform": "all",
+"resource_id": "6798332733694153230",
+"third_resource_id": "6798332733694153230",
+"source_platform": 1,
+"name": "放大",
+"category_id": "in_fav",
+"category_name": "in_fav",
+"panel": "video",
+"material_type": "video",
+"anim_adjust_params": null
+},
+"rank": 1
+},
+{
+"kind": "animation",
+"name": "向右擦除",
+"resource_id": "6771288500240126478",
+"category": "入场",
+"slot": "in",
+"target": "text",
+"default_duration_us": 300000,
+"vip": null,
+"path": "@userdata/Cache/effect/6771288500240126478/137e4f6e581377e6c98b18e3d29694a2",
+"template": {
+"type": "in",
+"start": 0,
+"path": "@userdata/Cache/effect/6771288500240126478/137e4f6e581377e6c98b18e3d29694a2",
+"platform": "all",
+"resource_id": "6771288500240126478",
+"third_resource_id": "6771288500240126478",
+"source_platform": 1,
+"name": "向右擦除",
+"category_id": "ruchang",
+"category_name": "入场",
+"panel": "",
+"material_type": "sticker",
+"anim_adjust_params": null
+},
+"rank": 2
+},
+{
+"kind": "animation",
+"name": "向右甩入",
+"resource_id": "6739338727866241539",
+"category": "Trending",
+"slot": "in",
+"target": "video",
+"default_duration_us": 300000,
+"vip": null,
+"path": "@userdata/Cache/effect/6739338727866241539/03aa26f798ad7fbb98880e35bc128829",
+"template": {
+"type": "in",
+"start": 0,
+"path": "@userdata/Cache/effect/6739338727866241539/03aa26f798ad7fbb98880e35bc128829",
+"platform": "all",
+"resource_id": "6739338727866241539",
+"third_resource_id": "6739338727866241539",
+"source_platform": 1,
+"name": "向右甩入",
+"category_id": "2037708228",
+"category_name": "Trending",
+"panel": "video",
+"material_type": "video",
+"anim_adjust_params": null
+},
+"rank": 3
+},
+{
+"kind": "animation",
+"name": "动感放大",
+"resource_id": "6740867832570974733",
+"category": "in_fav",
+"slot": "in",
+"target": "video",
+"default_duration_us": 300000,
+"vip": null,
+"path": "@userdata/Cache/effect/6740867832570974733/4c241a9c8ef566b91b6a499c33648062",
+"template": {
+"type": "in",
+"start": 0,
+"path": "@userdata/Cache/effect/6740867832570974733/4c241a9c8ef566b91b6a499c33648062",
+"platform": "all",
+"resource_id": "6740867832570974733",
+"third_resource_id": "6740867832570974733",
+"source_platform": 1,
+"name": "动感放大",
+"category_id": "in_fav",
+"category_name": "in_fav",
+"panel": "video",
+"material_type": "video",
+"anim_adjust_params": null
+},
+"rank": 4
+},
+{
+"kind": "animation",
+"name": "侧滑",
+"resource_id": "7241878149212934657",
+"category": "Trending\t",
+"slot": "out",
+"target": "video",
+"default_duration_us": 400000,
+"vip": null,
+"path": "@userdata/Cache/effect/7241878149212934657/1a661b1d0728177d889353174bfb0bf8",
+"template": {
+"type": "out",
+"start": 2800000,
+"path": "@userdata/Cache/effect/7241878149212934657/1a661b1d0728177d889353174bfb0bf8",
+"platform": "all",
+"resource_id": "7241878149212934657",
+"third_resource_id": "7241878149212934657",
+"source_platform": 1,
+"name": "侧滑",
+"category_id": "2037708242",
+"category_name": "Trending\t",
+"panel": "video",
+"material_type": "video",
+"anim_adjust_params": null
+},
+"rank": 5
+},
+{
+"kind": "font",
+"name": "思源粗宋",
+"resource_id": "6807742980271641102",
+"category": "CapCut字体",
+"vip": null,
+"path": "@userdata/Cache/effect/6807742980271641102/e4387517f584be39bb2e1ca4ede6cbe3/SourceHanSerifCN-Heavy.otf",
+"template": {},
+"rank": 1
+},
 {
 "kind": "font",
 "name": "en",
@@ -11,7 +156,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/en.ttf",
 "template": {},
-"rank": 1
+"rank": 2
 },
 {
 "kind": "font",
@@ -21,7 +166,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/CapCutSansText-Bold.otf",
 "template": {},
-"rank": 2
+"rank": 3
 },
 {
 "kind": "font",
@@ -31,7 +176,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/CapCutSansText-Medium.otf",
 "template": {},
-"rank": 3
+"rank": 4
 },
 {
 "kind": "font",
@@ -41,7 +186,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/CapCutSansText-Regular.otf",
 "template": {},
-"rank": 4
+"rank": 5
 },
 {
 "kind": "font",
@@ -51,7 +196,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/NotoSans-Regular.ttf",
 "template": {},
-"rank": 5
+"rank": 6
 },
 {
 "kind": "font",
@@ -61,7 +206,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/NotoSansArabic-Regular.ttf",
 "template": {},
-"rank": 6
+"rank": 7
 },
 {
 "kind": "font",
@@ -71,7 +216,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/NotoSansBengali-Regular.ttf",
 "template": {},
-"rank": 7
+"rank": 8
 },
 {
 "kind": "font",
@@ -81,7 +226,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/NotoSansHebrew-Regular.ttf",
 "template": {},
-"rank": 8
+"rank": 9
 },
 {
 "kind": "font",
@@ -91,7 +236,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/NotoSansKhmer-Regular.ttf",
 "template": {},
-"rank": 9
+"rank": 10
 },
 {
 "kind": "font",
@@ -101,7 +246,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/NotoSansMyanmar-Regular.ttf",
 "template": {},
-"rank": 10
+"rank": 11
 },
 {
 "kind": "font",
@@ -111,7 +256,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/NotoSansSymbols2-Regular.ttf",
 "template": {},
-"rank": 11
+"rank": 12
 },
 {
 "kind": "font",
@@ -121,7 +266,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/NotoSansThai-Regular.ttf",
 "template": {},
-"rank": 12
+"rank": 13
 },
 {
 "kind": "font",
@@ -131,7 +276,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/ja.ttf",
 "template": {},
-"rank": 13
+"rank": 14
 },
 {
 "kind": "font",
@@ -141,7 +286,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/ko.ttf",
 "template": {},
-"rank": 14
+"rank": 15
 },
 {
 "kind": "font",
@@ -151,7 +296,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/th.ttf",
 "template": {},
-"rank": 15
+"rank": 16
 },
 {
 "kind": "font",
@@ -161,7 +306,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/zh-hans.ttf",
 "template": {},
-"rank": 16
+"rank": 17
 },
 {
 "kind": "font",
@@ -171,7 +316,7 @@
 "vip": false,
 "path": "@app/Contents/Resources/Font/SystemFont/zh-hant.ttf",
 "template": {},
-"rank": 17
+"rank": 18
 }
 ]
 }

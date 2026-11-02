@@ -3,7 +3,7 @@
 一个 JSON 文件。时间单位**秒**；坐标 `x, y` 以画面中心为 0，左右/上下边缘为 ±1。
 
 ```json
-{"name": "草稿名", "canvas": "9:16" | {"width":1080,"height":1920,"fps":30}, "fps": 30,
+{"name": "草稿名", "canvas": "9:16" | {"width":1080,"height":1920,"fps":30}, "fps": 30, "member": false,
  "tracks": [ { "type": "...", "name": "可选", "clips": [ ... ] } ]}
 ```
 `canvas` 预设：`16:9` `9:16` `1:1` `4:3` `3:4` `2.35:1`。
@@ -59,4 +59,4 @@
 
 资源名查询：`jyr catalog list transition|mask|effect|filter|animation|font|sticker`；CapCut 加 `--app capcut`，`--free` 只看免费的。
 
-**资源只用免费的。** 内置清单只收剪映 / CapCut 自己在草稿 `key_value.json` 里记为免费（`is_vip` 0）的资源，加上 App 安装包自带的字体。`"auto"` 只挑免费的；点名用了会员 / Pro 资源（来自你自己 `catalog scan` 的结果），`build` 的 `warnings` 里会提醒。剪映内置清单里没有蒙版和文字动画——需要的话在剪映里手动加，`mask` / `anim` 字段只在清单里有对应资源时可用。
+**免费 / 会员。** 每个资源都标了免费（`is_vip` 0，来自剪映 / CapCut 自己在草稿 `key_value.json` 里的记录，或 App 安装包自带的字体）、会员、或没有记录。默认只能用免费的；剪映会员 / CapCut Pro 用户在计划顶层写 `"member": true`（或命令行 `jyr --member ...`）后，会员和没记录的资源也能点名用，`build` 的 `warnings` 会列出用到的会员资源。`"auto"` 始终只挑免费的。剪映的免费资源里没有蒙版和文字动画（`mask` / 大部分 `anim` 属于会员或没有记录）。

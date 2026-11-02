@@ -10,7 +10,7 @@ Transitions, keyframes, subtitles, beat-sync, talking-head rough cuts — all as
 
 <img src="docs/media/hero.gif" width="640" alt="A draft generated from a JSON plan, opened and played in JianYing 11.7">
 
-<p>A JSON plan became a draft, <b>opened in JianYing 11.7</b>.<br>(Recorded with v0.1. The small circle at the top right is a picture-in-picture with a circle mask; from v0.2, add effects like masks in JianYing yourself — see "Free resources only".)</p>
+<p>A JSON plan became a draft, <b>opened in JianYing 11.7</b>.<br>(The small circle at the top right is a picture-in-picture with a circle mask, which is a member resource — see below.)</p>
 
 </div>
 
@@ -42,17 +42,20 @@ With a finished video, every fix means going back to the AI, regenerating and re
 | 🥁 | **Beat sync** | Detects the beat, cuts footage on it, adds JianYing beat markers |
 | 📦 | **Batch** | One template × one spreadsheet = N drafts |
 | 🎨 | **Auto picks** | `"auto"` transitions / effects / fonts, chosen from free resources only |
+| 👑 | **Member resources** | JianYing members add `--member` and the AI can use paid transitions, masks, text animations |
 | 🌏 | **CapCut** | The same plan makes a CapCut draft |
 
 You open, fine-tune and render the draft in JianYing / CapCut; paid features follow the app's own rules.
 
-## Free resources only
+## Free users get free resources, members get theirs
 
 Transitions, effects, stickers and fonts are the app's own resources: a draft only names them by ID, and the app downloads the files.
 
-The built-in list holds **free resources only**: JianYing records in each draft folder's `key_value.json` whether a resource it used is paid (`is_vip`); only `is_vip` 0 goes in, plus the fonts bundled with JianYing. Paid resources and ones with no record are left out.
+JianYing records in each draft folder's `key_value.json` whether a resource it used is paid (`is_vip`). Easy JianYing marks all 375 built-in cards with it: **175 free** (`is_vip` 0, or fonts bundled with JianYing), 67 paid, 133 with no record.
 
-JianYing gets **175**: 116 stickers, 28 effects, 23 fonts, 5 transitions, 1 animation, 1 filter, 1 audio effect. `"auto"` only picks from these. For paid effects, masks or text animations, open the draft and add them in JianYing.
+- **By default only free ones are used**: 116 stickers, 28 effects, 23 fonts, 5 transitions, 1 animation, 1 filter, 1 audio effect. `"auto"` only picks from these.
+- **If you are a JianYing member**, add `--member` (or `"member": true` in the plan) and paid or unrecorded resources can be named too — paid transitions, masks, text animations. The build warns which ones are paid.
+- Once the draft is open, JianYing applies its own membership rules as usual; jyr does not get around any check.
 
 ## Tested versions
 
@@ -77,7 +80,7 @@ jyr --app capcut inspect "my first CapCut draft"   # read, write SRT, edit a cop
 
 With only one of the two apps installed, `--app` is optional; with both, JianYing is the default. On the CapCut side the tool **only reads and writes draft files**; it uses nothing inside CapCut and never touches its UI.
 
-CapCut's resource IDs only partly match JianYing's, so it has its own list. Built in are CapCut's bundled fonts; anything you have used once in CapCut becomes usable after `jyr --app capcut catalog scan`, which also reads `key_value.json` to tell free from Pro: `"auto"` only picks free ones, naming a Pro one gives a warning, `catalog list --free` lists only free ones.
+CapCut's resource IDs only partly match JianYing's, so it has its own list. Built in are mostly CapCut's bundled fonts; anything you have used once in CapCut becomes usable after `jyr --app capcut catalog scan`. Same rules as JianYing: free by default, CapCut Pro users add `--member` for Pro resources; `catalog list --free` lists only free ones.
 
 ## Quick start
 
@@ -103,7 +106,7 @@ Quit JianYing before publishing; the new draft appears first on its home screen.
 
 ## Limits
 
-macOS only: tested on an Intel Mac with JianYing 11.7 and CapCut 9.4.1. Apple Silicon should work but hasn't been tested; Windows is untested. jyr only writes draft files and never operates the apps' UI — opening, editing and rendering happen in the app. jyr does not read drafts JianYing has saved (CapCut drafts it can read). Built-in resources are free ones only; add paid effects in JianYing yourself, under JianYing's membership rules. Whether CapCut downloads a missing effect by ID, as JianYing does, has not been checked on another machine yet. Not yet supported: crop, chroma key, color grading, curve speed, styled text and audio effects. **Unofficial; not affiliated with ByteDance.** JianYing's / CapCut's terms of use apply.
+macOS only: tested on an Intel Mac with JianYing 11.7 and CapCut 9.4.1. Apple Silicon should work but hasn't been tested; Windows is untested. jyr only writes draft files and never operates the apps' UI — opening, editing and rendering happen in the app. jyr does not read drafts JianYing has saved (CapCut drafts it can read). Only free resources are used unless you declare membership with `--member`; JianYing's membership rules apply either way. Whether CapCut downloads a missing effect by ID, as JianYing does, has not been checked on another machine yet. Not yet supported: crop, chroma key, color grading, curve speed, styled text and audio effects. **Unofficial; not affiliated with ByteDance.** JianYing's / CapCut's terms of use apply.
 
 ## Credits
 

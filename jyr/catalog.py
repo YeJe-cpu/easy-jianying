@@ -8,8 +8,13 @@ user has applied once in the app (and is still cached) becomes usable here.
 
 CapCut keeps its own resource ids, so it gets its own catalog. Each draft
 folder (JianYing and CapCut) also has a plain key_value.json recording, per
-resource used, whether it is a paid one (is_vip); entries carry that as `vip`.
-Only free resources are shipped, and `auto` only picks free ones.
+resource used, whether it is a paid one (is_vip); entries carry that as `vip`
+(True paid, False free, None no record).
+
+Membership tiers: by default only free resources can be used. A user who is a
+member of the app says so (`--member`, or `"member": true` in the plan) to
+use paid and unrecorded ones too; the app still applies its own membership
+rules when the draft is opened and rendered. `auto` always picks free ones.
 """
 
 from __future__ import annotations
@@ -232,9 +237,9 @@ def _resolve(v, app: Path | None, user_data: Path):
 
 
 def builtin_cards(target: App = JIANYING) -> list[dict]:
-    """Resource cards shipped with jyr: free resources only (is_vip 0 in the app's own
-    key_value.json, or fonts bundled with the app). JianYing finds resources by id and
-    downloads missing effect files itself, so a card works even if this machine never used it."""
+    """Resource cards shipped with jyr, each marked free / paid / no record (from is_vip in the
+    app's own key_value.json; fonts bundled with the app are free). JianYing finds resources by
+    id and downloads missing effect files itself, so a card works even if this machine never used it."""
     pack = pack_path(target)
     if not pack.is_file():
         return []
@@ -252,14 +257,15 @@ def builtin_cards(target: App = JIANYING) -> list[dict]:
         on_disk = bool(e.get("path")) and Path(e["path"]).exists()
         # Bundled app fonts must exist; everything else JianYing fetches by id.
         e["available"] = on_disk or not str(c.get("path", "")).startswith("@app/")
-        e["vip"] = False  # the pack holds free resources only
+        e["vip"] = c.get("vip")
         cards.append(e)
     return cards
 
 
 class Catalog:
-    def __init__(self, data: dict | None = None, rt: Runtime | None = None):
+    def __init__(self, data: dict | None = None, rt: Runtime | None = None, member: bool = False):
         self.app = rt.app if rt is not None else JIANYING
+        self.member = member
         if data is not None:
             self.data = data
             self.entries = data["entries"]
@@ -270,27 +276,44 @@ class Catalog:
         mine = {key(e) for e in own}
         self.entries = own + [e for e in builtin_cards(self.app) if key(e) not in mine]
 
+    def allowed(self, e: dict) -> bool:
+        """Free resources for everyone; paid / unrecorded ones only for a declared member."""
+        return e.get("vip") is False or self.member
+
     def find(self, kind: str, name: str, slot: str | None = None, target: str | None = None) -> dict:
-        pool = [e for e in self.entries if e["kind"] == kind
-                and (slot is None or e.get("slot") == slot)
-                and (target is None or e.get("target") in (target, None))]
+        everything = [e for e in self.entries if e["kind"] == kind
+                      and (slot is None or e.get("slot") == slot)
+                      and (target is None or e.get("target") in (target, None))]
         if str(name).startswith("auto"):
-            return self.auto(kind, str(name), pool)
+            return self.auto(kind, str(name), everything)
+        pool = [e for e in everything if self.allowed(e)]
+        locked = self._match(everything, name) if not self.member else []
+        if locked and not self._match(pool, name):
+            what = "a paid (会员 / Pro)" if locked[0].get("vip") else "an unmarked (possibly paid)"
+            raise JyrError(f"{kind} {locked[0]['name']!r} is {what} resource. If you are a {self.app.label} member, "
+                           f"build with --member (or \"member\": true in the plan); otherwise add it in "
+                           f"{self.app.label} by hand, or pick a free one.")
         if not pool:
             if self.app is not JIANYING:
                 raise JyrError(f"no {kind} resources known for {self.app.label}; apply one in {self.app.label}, "
                                f"save, quit, then run `jyr --app {self.app.key} catalog scan`")
             raise JyrError(f"no free {kind} resources ship with jyr; add it in JianYing by hand after opening the draft")
+        hits = self._match(pool, name)
+        if hits:
+            # The cache may have been cleared; JianYing re-downloads by id when the draft opens.
+            return sorted(hits, key=lambda e: (not e.get("available"), e.get("vip") is not False, -e.get("seen", 0)))[0]
+        near = ", ".join(e["name"] for e in pool if e.get("available"))[:400]
+        raise JyrError(f"{kind} {name!r} not found. Available: {near}")
+
+    @staticmethod
+    def _match(pool: list[dict], name: str) -> list[dict]:
         key = str(name).strip()
         for test in (lambda e: e["resource_id"] == key, lambda e: e["name"] == key,
                      lambda e: e["name"].lower() == key.lower(), lambda e: key.lower() in e["name"].lower()):
             hits = [e for e in pool if test(e)]
             if hits:
-                # The cache may have been cleared; JianYing re-downloads by id when the draft opens.
-                usable = sorted(hits, key=lambda e: (not e.get("available"), bool(e.get("vip")), -e.get("seen", 0)))
-                return usable[0]
-        near = ", ".join(e["name"] for e in pool if e.get("available"))[:400]
-        raise JyrError(f"{kind} {name!r} not found. Available: {near}")
+                return hits
+        return []
 
     def auto(self, kind: str, spec: str, pool: list[dict]) -> dict:
         """'auto' = the user's most-used available one; 'auto:<role>' for fonts."""

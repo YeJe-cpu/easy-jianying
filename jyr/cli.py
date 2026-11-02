@@ -58,7 +58,7 @@ def cmd_catalog(a) -> int:
             and (not a.free or e.get("vip") is False)]
     for e in rows[: a.limit]:
         extra = e.get("slot") or e.get("shape") or e.get("category") or ""
-        vip = {True: "paid", False: "free"}.get(e.get("vip"), "")
+        vip = {True: "paid", False: "free"}.get(e.get("vip"), "?")
         print(f"{e['kind']:<12} {e['name']:<24} {extra:<10} {vip:<5} used×{e['seen']}")
     print(f"({len(rows)} shown of kind={a.kind or 'all'})", file=sys.stderr)
     return 0
@@ -91,6 +91,8 @@ def cmd_publish(a) -> int:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="jyr", description="Write JianYing (剪映) / CapCut drafts from code.")
     ap.add_argument("--version", action="version", version=__version__)
+    ap.add_argument("--member", action="store_true",
+                    help="I am a member of the app: allow its paid resources (it still checks membership itself)")
     ap.add_argument("--app", choices=["auto", "jianying", "capcut"], default=None,
                     help="which editor to target (default: the one installed; JianYing if both)")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -125,6 +127,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     if a.app:
         os.environ["JYR_TARGET"] = a.app
+    if a.member:
+        os.environ["JYR_MEMBER"] = "1"
     try:
         return a.fn(a)
     except JyrError as e:

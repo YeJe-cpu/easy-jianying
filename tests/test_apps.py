@@ -210,7 +210,7 @@ class CapCutResourceTests(unittest.TestCase):
                                    "x": "not a dict"})
         self.assertEqual(flags, {"1": False, "2": True})
 
-    def test_scan_tags_free_pro_unknown_and_pack_keeps_only_free(self):
+    def test_scan_tags_free_pro_unknown_and_pack_keeps_the_marks(self):
         root = TMP / "scan-root"
         tr = lambda rid, name: {"id": rid + "x", "resource_id": rid, "effect_id": rid, "name": name,
                                 "path": "/nope", "type": "transition", "duration": 466666}
@@ -234,8 +234,11 @@ class CapCutResourceTests(unittest.TestCase):
                         "--out", str(out), str(path)], check=True, capture_output=True)
         pack = json.loads(out.read_text())
         self.assertEqual(pack["app"], "capcut")
+        self.assertEqual({c["name"]: c["vip"] for c in pack["cards"]}, vip)  # every card keeps its mark
+        subprocess.run([sys.executable, str(ROOT / "tools/build_resource_pack.py"), "--app", "capcut",
+                        "--free-only", "--out", str(out), str(path)], check=True, capture_output=True)
+        pack = json.loads(out.read_text())
         self.assertEqual(sorted(c["name"] for c in pack["cards"]), ["zh-hans", "闪白"])
-        self.assertTrue(all(c.get("vip") is False for c in pack["cards"]))
         self.assertEqual(next(c for c in pack["cards"] if c["name"] == "zh-hans")["path"],
                          "@app/Contents/Resources/Font/SystemFont/zh-hans.ttf")
 
@@ -250,17 +253,46 @@ class CapCutResourceTests(unittest.TestCase):
         d = comp.compile(clips("auto"))
         self.assertEqual(d.materials["transitions"][0]["name"], "叠化")
         self.assertEqual(comp.warnings, [])
-        comp = planmod.Compiler(rt, cat)
+        with self.assertRaisesRegex(JyrError, "--member"):
+            planmod.Compiler(rt, cat).compile(clips("高级"))
+        comp = planmod.Compiler(rt, cat, member=True)
         comp.compile(clips("高级"))
         self.assertTrue(any("paid" in w for w in comp.warnings))
 
-    def test_shipped_packs_are_free_only_and_private_data_free(self):
+    def test_shipped_packs_mark_every_card_and_hold_no_private_data(self):
         for name in ("resources.json", "resources.capcut.json"):
             blob = (ROOT / "jyr/data" / name).read_text("utf-8")
             self.assertNotIn("/Users/", blob)
             cards = json.loads(blob)["cards"]
-            self.assertTrue(cards, name)
-            self.assertTrue(all(c.get("vip") is False for c in cards), name)
+            self.assertTrue(any(c["vip"] is False for c in cards), name)
+            self.assertTrue(all("vip" in c and c["vip"] in (True, False, None) for c in cards), name)
+
+    def test_paid_resources_need_a_declared_member(self):
+        e = lambda name, vip, seen=1: {"kind": "transition", "name": name, "resource_id": name, "path": "/x",
+                                       "available": True, "seen": seen, "vip": vip, "template": {"name": name}}
+        entries = {"entries": [e("会员转场", True, 99), e("没记录", None), e("叠化", False)]}
+        rt = jianying_rt(TMP)
+        clips = lambda tr, **plan: {**plan, "tracks": [{"type": "video", "clips": [
+            {"src": str(TMP / "a.mp4"), "duration": 2, "transition": tr}, {"src": str(TMP / "a.mp4"), "duration": 2}]}]}
+        for name in ("会员转场", "没记录"):
+            with self.assertRaisesRegex(JyrError, "--member"):
+                planmod.Compiler(rt, Catalog(entries)).compile(clips(name))
+        comp = planmod.Compiler(rt, Catalog(entries))
+        d = comp.compile(clips("会员转场", member=True))  # declared in the plan
+        self.assertEqual(d.materials["transitions"][0]["name"], "会员转场")
+        self.assertTrue(any("membership" in w for w in comp.warnings))
+        mask = {"kind": "mask", "name": "圆形", "shape": "circle", "resource_id": "m", "path": "/x",
+                "available": True, "seen": 1, "vip": None, "template": {"name": "圆形"}}
+        masked = {"tracks": [{"type": "video", "clips": [{"src": str(TMP / "a.mp4"), "duration": 1,
+                                                          "mask": {"shape": "circle"}}]}]}
+        with self.assertRaisesRegex(JyrError, "--member"):
+            planmod.Compiler(rt, Catalog({"entries": [mask]})).compile(masked)
+        comp = planmod.Compiler(rt, Catalog({"entries": [mask]}), member=True)
+        comp.compile(masked)
+        self.assertTrue(any("mask" in w for w in comp.warnings))
+        with mock.patch.dict(os.environ, {"JYR_MEMBER": "1"}):  # --member on the command line
+            comp = planmod.Compiler(rt, Catalog(entries))
+            self.assertEqual(comp.compile(clips("auto")).materials["transitions"][0]["name"], "叠化")
 
     def test_example_plans_build_from_free_builtin_resources_only(self):
         media = TMP / "examples/media"
@@ -295,6 +327,10 @@ class CapCutResourceTests(unittest.TestCase):
         out = TMP / "jy-pack.json"
         subprocess.run([sys.executable, str(ROOT / "tools/build_resource_pack.py"), "--key-values", str(kvroot),
                         "--out", str(out), str(src)], check=True, capture_output=True)
+        flags = {c["name"]: c["vip"] for c in json.loads(out.read_text())["cards"]}
+        self.assertEqual(flags, {"n1": False, "n2": True, "n3": None, "n": False})
+        subprocess.run([sys.executable, str(ROOT / "tools/build_resource_pack.py"), "--key-values", str(kvroot),
+                        "--free-only", "--out", str(out), str(src)], check=True, capture_output=True)
         self.assertEqual(sorted(c["name"] for c in json.loads(out.read_text())["cards"]), ["n", "n1"])
 
 
