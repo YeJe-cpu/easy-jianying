@@ -1,16 +1,16 @@
 """Find the local JianYing / CapCut install and describe it.
 
-Everything here is read-only. Version knowledge is a small table of what we
-observed ourselves; `jyr adapt` extends it for versions we have not seen.
+Everything here is read-only: the app's Info.plist for its version, and draft
+files on disk. jyr writes drafts as plain JSON files; the apps open them, and
+the user edits and finishes the video there. Nothing inside either app is used
+and their UI is never operated.
 
-Two apps share one draft format: JianYing (剪映专业版) and CapCut (its
-international edition). For CapCut we only read and write the plaintext draft
-files — no library of the app is linked or called, and its UI is never driven.
+Version knowledge is a small table of what we observed ourselves (the
+timeline schema each version writes); `jyr adapt` covers versions not in it.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import plistlib
@@ -24,17 +24,14 @@ CONFIG_DIR = Path(os.environ.get("JYR_HOME", Path.home() / ".jyr"))
 
 # app version -> what that version itself writes as draft_info.new_version.
 # Observed from drafts saved by each version on our machines.
-# "cipher": "plain" = from 11.7 the draft key lives inside the running app; we write
-# plaintext drafts (JianYing encrypts them on first save) and cannot read its drafts.
 KNOWN_VERSIONS: dict[str, dict] = {
-    "11.7.0": {"timeline_version": "189.0.0", "cipher": "plain",
-               "dylib_sha256": "c2c9bc704f4aef03b069838bcaded39cc6b0a5ec72cf9ff7a8ee854bed3391b2"},
-    "11.6.0": {"timeline_version": "189.0.0", "dylib_sha256": "a490d9a08b71a2d9af138d24528d3d40d65b37b06911627c53a2915c6cac0754"},
+    "11.7.0": {"timeline_version": "189.0.0"},
+    "11.6.0": {"timeline_version": "189.0.0"},
     "11.5.0": {"timeline_version": "187.0.0"},
 }
-# CapCut drafts are plaintext JSON; the app never encrypts them.
+# CapCut keeps its drafts as plain JSON, so unknown versions are learned from them.
 CAPCUT_VERSIONS: dict[str, dict] = {
-    "9.4.1": {"timeline_version": "185.0.0", "cipher": "plain"},
+    "9.4.1": {"timeline_version": "185.0.0"},
 }
 DRAFT_FORMAT_VERSION = 360000
 
@@ -81,8 +78,6 @@ class Runtime:
     app_path: Path
     version: str
     build: str
-    dylib: Path
-    dylib_sha256: str
     draft_root: Path
     cache_root: Path
     profile: dict = field(default_factory=dict)
@@ -128,14 +123,6 @@ def save_user_profile(version: str, profile: dict, app: App = JIANYING) -> Path:
     p = CONFIG_DIR / "profiles.json"
     p.write_text(json.dumps(data, indent=2, ensure_ascii=False))
     return p
-
-
-def sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def _installed(app: App) -> Path | None:
@@ -191,8 +178,8 @@ def find_app(app: App = JIANYING) -> Path:
 
 
 def _version_from_drafts(app: App, version: str, draft_root: Path, limit: int = 60) -> str:
-    """Highest timeline schema (new_version) among drafts this exact app version saved.
-    Only for apps whose drafts are plaintext (CapCut)."""
+    """Highest timeline schema (new_version) among plain-JSON drafts this exact app version saved
+    (CapCut's own drafts; JianYing stores its saved drafts in its own format)."""
     files = sorted(draft_root.glob("*/draft_info.json"), key=lambda p: -p.stat().st_mtime)[:limit]
     found = []
     for f in files:
@@ -218,25 +205,10 @@ def detect(app_name: str | None = None) -> Runtime:
     builtin = {} if os.environ.get("JYR_NO_BUILTIN_PROFILES") else app.known_versions
     profile = dict(builtin.get(version, {}))
     profile.update(_user_profiles().get(_profile_key(version, app), {}))
-    dylib = path / "Contents/Frameworks/libvideoeditor.dylib"
-    if app is CAPCUT:
-        # Never hashed, linked or loaded: CapCut is handled through its plaintext files only.
-        sha = ""
-        profile["cipher"] = "plain"
-        if not profile.get("timeline_version"):
-            tv = _version_from_drafts(app, version, draft_root)
-            if tv:
-                profile.update({"timeline_version": tv, "learned_from": "drafts"})
-            else:
-                profile = {}
-        return Runtime(path, version, build, dylib, sha, draft_root, app.user_data / "Cache", profile, app)
-    if not dylib.is_file():
-        raise JyrError(f"{path} has no libvideoeditor.dylib; is this really JianYing?")
-    sha = sha256_file(dylib)
-    if profile.get("dylib_sha256") and profile["dylib_sha256"] != sha:
-        # Same version string, different binary: treat as unknown.
-        profile = {}
-    return Runtime(path, version, build, dylib, sha, draft_root, app.user_data / "Cache", profile, app)
+    if app is CAPCUT and not profile.get("timeline_version"):
+        tv = _version_from_drafts(app, version, draft_root)
+        profile = {"timeline_version": tv, "learned_from": "drafts"} if tv else {}
+    return Runtime(path, version, build, draft_root, app.user_data / "Cache", profile, app)
 
 
 def app_running(app: App | Runtime = JIANYING) -> bool:
@@ -245,9 +217,6 @@ def app_running(app: App | Runtime = JIANYING) -> bool:
     out = subprocess.run(["pgrep", "-x", app.process], capture_output=True)
     return out.returncode == 0
 
-
-def jianying_running() -> bool:
-    return app_running(JIANYING)
 
 
 def quit_hint(rt: Runtime) -> str:
@@ -262,6 +231,6 @@ def require_known(rt: Runtime) -> None:
         )
     if not rt.known:
         raise JyrError(
-            f"JianYing {rt.version} has not been adapted yet. Run `jyr adapt` "
-            "(it checks the codec and learns the draft schema from a draft this version saved)."
+            f"JianYing {rt.version} is not in jyr's version table yet. Run `jyr adapt` "
+            "(it assumes the newest known draft schema), then open one built draft in JianYing to confirm."
         )

@@ -33,7 +33,7 @@ def cmd_inspect(a) -> int:
 
 def cmd_srt(a) -> int:
     rt = runtime.detect()
-    text = reader.export_srt(rt, reader.resolve(rt, a.draft), a.which)
+    text = reader.srt_text(rt, reader.resolve(rt, a.draft), a.which)
     if a.out:
         Path(a.out).write_text(text, "utf-8")
         print(a.out)
@@ -70,7 +70,7 @@ def cmd_edit(a) -> int:
 
 def cmd_adapt(a) -> int:
     from .adapt import adapt
-    rep = adapt(auto=a.auto)
+    rep = adapt()
     _print(rep)
     return 0 if rep.get("result", "").startswith("OK") else 1
 
@@ -204,13 +204,6 @@ def cmd_fonts(a) -> int:
     return 0
 
 
-def cmd_export(a) -> int:
-    from .export import export
-    results = [export(d, a.out, quit_after=(i == len(a.drafts) - 1)) for i, d in enumerate(a.drafts)]
-    _print(results if len(results) > 1 else results[0])
-    return 0
-
-
 def cmd_trash(a) -> int:
     from . import home
     rt = runtime.detect()
@@ -226,11 +219,6 @@ def register(sub) -> None:
     p.add_argument("drafts", nargs="*", help="draft folder names")
     p.add_argument("--restore", help="a ~/.jyr/trash/<time> folder to put back")
     p.set_defaults(fn=cmd_trash)
-
-    p = sub.add_parser("export", help="render drafts to video with JianYing itself (drives its UI)")
-    p.add_argument("drafts", nargs="+")
-    p.add_argument("--out", help="file (.mp4/.mov) or folder; default: JianYing's export folder")
-    p.set_defaults(fn=cmd_export)
 
     def media_args(p):
         p.add_argument("media", help="video or audio file (absolute path)")
@@ -287,27 +275,26 @@ def register(sub) -> None:
     p.add_argument("--limit", type=int, default=6)
     p.set_defaults(fn=cmd_fonts)
 
-    p = sub.add_parser("adapt", help="learn a new JianYing version after an update")
-    p.add_argument("--auto", action="store_true", help="let jyr drive JianYing to make a sample draft if needed")
+    p = sub.add_parser("adapt", help="set up a JianYing / CapCut version that is not in jyr's table yet")
     p.set_defaults(fn=cmd_adapt)
 
-    p = sub.add_parser("list", help="drafts on JianYing's home screen")
+    p = sub.add_parser("list", help="drafts on the app's home screen")
     p.add_argument("--limit", type=int, default=30)
     p.set_defaults(fn=cmd_list)
 
-    p = sub.add_parser("inspect", help="tracks, texts, missing media and resources of a draft")
+    p = sub.add_parser("inspect", help="tracks, texts, missing media and resources of a draft (CapCut, or built by jyr)")
     p.add_argument("draft", help="home-screen name, folder name or folder path")
     p.add_argument("--full", action="store_true")
     p.add_argument("--segments", type=int, default=5)
     p.set_defaults(fn=cmd_inspect)
 
-    p = sub.add_parser("srt", help="export a draft's subtitles / texts as SRT")
+    p = sub.add_parser("srt", help="a draft's subtitles / texts as SRT (CapCut drafts, or drafts jyr built)")
     p.add_argument("draft")
     p.add_argument("--which", choices=["auto", "subtitle", "all"], default="auto")
     p.add_argument("--out")
     p.set_defaults(fn=cmd_srt)
 
-    p = sub.add_parser("edit", help="edit a COPY of a draft and add it to the home screen")
+    p = sub.add_parser("edit", help="edit a COPY of a CapCut draft (or one jyr built) and add it to the home screen")
     p.add_argument("draft")
     p.add_argument("--ops", help="JSON list of ops (replace_text, relink, track_volume, remove_tracks, add_subtitles, shift)")
     p.add_argument("--replace", action="append", help="'old=>new' text replacement (repeatable)")

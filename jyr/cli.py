@@ -8,7 +8,7 @@ import os
 import sys
 from pathlib import Path
 
-from . import __version__, catalog, crypto, home, plan as planmod, runtime, writer
+from . import __version__, catalog, files, home, plan as planmod, runtime, writer
 from .util import JyrError
 
 
@@ -20,39 +20,21 @@ def cmd_doctor(a) -> int:
     rt = runtime.detect()
     rep = {"target": rt.app.key, "app": str(rt.app_path), "version": rt.version, "build": rt.build,
            "adapted": rt.known, "timeline_version": rt.timeline_version or None, "draft_root": str(rt.draft_root),
-           "app_running": runtime.app_running(rt)}
+           "app_running": runtime.app_running(rt), "draft_files": "plain JSON"}
     if rt.is_capcut:
-        rep["cipher"] = "plain (CapCut drafts are not encrypted)"
         sample = next(iter(sorted(rt.draft_root.glob("*/draft_info.json"), key=lambda p: -p.stat().st_mtime)), None)
         if sample:
             try:
-                json.loads(sample.read_bytes())
-                rep["read_check"] = f"ok (plain JSON: {sample.parent.name})"
-            except ValueError as e:
+                files.read_json(rt, sample)
+                rep["read_check"] = f"ok ({sample.parent.name})"
+            except (JyrError, ValueError) as e:
                 rep["read_check"] = f"FAILED: {e}"
-        rep["catalog"] = str(catalog.catalog_path(rt)) if catalog.catalog_path(rt).exists() else \
-            "missing — run `jyr --app capcut catalog scan`"
-        rep["status"] = "ok" if rt.known else "needs-attention"
-        _print(rep)
-        return 0 if rep["status"] == "ok" else 1
-    rep["dylib_sha256"] = rt.dylib_sha256[:16] + "…"
-    try:
-        exe = crypto.ensure_bridge(rt)
-        rep["bridge"] = str(exe)
-        sample = next(iter(sorted(rt.draft_root.glob("*/draft_info.json"), key=lambda p: -p.stat().st_mtime)), None)
-        if sample:
-            raw = sample.read_bytes()
-            plain = crypto.decrypt_bytes(rt, raw)
-            json.loads(plain)
-            rep["codec_check"] = f"ok (decrypted {sample.parent.name})"
-    except (JyrError, ValueError) as e:
-        rep["codec_check"] = f"FAILED: {e}"
-    rep["catalog"] = str(catalog.catalog_path(rt)) if catalog.catalog_path(rt).exists() else "missing — run `jyr catalog scan`"
-    rep["cipher"] = "plain (JianYing re-encrypts on first save)" if crypto.plain_mode(rt) else "encrypted"
-    codec_ok = str(rep.get("codec_check", "")).startswith("ok")
-    rep["status"] = "ok" if rt.known and (codec_ok or crypto.plain_mode(rt)) else "needs-attention"
-    if crypto.plain_mode(rt) and not codec_ok:
-        rep["note"] = "create/build/publish work; reading drafts JianYing itself saved (inspect/edit/srt) does not"
+    else:
+        rep["note"] = "jyr writes drafts for JianYing; drafts JianYing has saved are not read"
+    path = catalog.catalog_path(rt)
+    rep["catalog"] = str(path) if path.exists() else \
+        f"built-in free resources only (`jyr{' --app capcut' if rt.is_capcut else ''} catalog scan` adds your own)"
+    rep["status"] = "ok" if rt.known else "needs-attention"
     _print(rep)
     return 0 if rep["status"] == "ok" else 1
 
@@ -67,18 +49,17 @@ def cmd_catalog(a) -> int:
                 counts[e["kind"]] = counts.get(e["kind"], 0) + 1
         res = {"drafts_scanned": c["drafts_scanned"], "unreadable": c["drafts_unreadable"],
                 "available": counts, "saved_to": str(catalog.catalog_path(rt))}
-        if rt.is_capcut:
-            res["pro_only"] = sum(1 for e in c["entries"] if e.get("vip") is True)
-            res["free_unknown"] = sum(1 for e in c["entries"] if e.get("vip") is None and e["kind"] != "font")
+        res["paid"] = sum(1 for e in c["entries"] if e.get("vip") is True)
+        res["no_free_record"] = sum(1 for e in c["entries"] if e.get("vip") is None)
         _print(res)
         return 0
     cat = catalog.Catalog(rt=rt)
     rows = [e for e in cat.list(a.kind) if e.get("available") and (not a.grep or a.grep in e["name"])
-            and (not a.free or e.get("vip") is False or (e["kind"] == "font" and not e.get("vip")))]
+            and (not a.free or e.get("vip") is False)]
     for e in rows[: a.limit]:
         extra = e.get("slot") or e.get("shape") or e.get("category") or ""
-        vip = {True: "Pro", False: "free"}.get(e.get("vip"), "") if rt.is_capcut else ""
-        print(f"{e['kind']:<12} {e['name']:<24} {extra:<10} {vip:<4} used×{e['seen']}")
+        vip = {True: "paid", False: "free"}.get(e.get("vip"), "")
+        print(f"{e['kind']:<12} {e['name']:<24} {extra:<10} {vip:<5} used×{e['seen']}")
     print(f"({len(rows)} shown of kind={a.kind or 'all'})", file=sys.stderr)
     return 0
 
@@ -121,7 +102,7 @@ def main(argv=None) -> int:
     c.add_argument("kind", nargs="?", help="transition|mask|effect|filter|animation|font|sticker|audio_effect|text_effect")
     c.add_argument("--grep", default="")
     c.add_argument("--limit", type=int, default=200)
-    c.add_argument("--free", action="store_true", help="CapCut: only resources known to be free")
+    c.add_argument("--free", action="store_true", help="only resources known to be free")
     c.set_defaults(fn=cmd_catalog)
 
     b = sub.add_parser("build", help="plan.json -> draft folder (does not touch the app)")

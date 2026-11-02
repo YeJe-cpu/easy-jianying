@@ -1,8 +1,8 @@
-"""CapCut tests: fake app bundles and draft folders, no CapCut needed.
+"""App / file / resource tests: fake app bundles and draft folders, no JianYing or CapCut needed.
 
-Checks that CapCut is handled through its plaintext files only (no codec, no
-library), that drafts carry CapCut's own platform / timeline schema, and that
-Pro resources are flagged and kept out of the built-in pack.
+Checks that drafts are plain JSON files with each app's own platform / timeline
+schema, that only plain JSON is ever read, and that paid resources are flagged
+and kept out of the built-in packs.
 
 run: python3 -m unittest discover -s tests
 """
@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from jyr import catalog, crypto, home, plan as planmod, reader, runtime, writer
+from jyr import adapt, catalog, files, home, plan as planmod, reader, runtime, writer
 from jyr.catalog import Catalog
 from jyr.util import JyrError
 
@@ -64,9 +64,13 @@ def tearDownModule():
 
 def capcut_rt(draft_root: Path, version: str = "9.4.1", profile: dict | None = None) -> runtime.Runtime:
     app = fake_app(f"CapCut-{version}.app", "com.lemon.lvoverseas", version)
-    return runtime.Runtime(app, version, version, app / "Contents/Frameworks/libvideoeditor.dylib", "",
-                           draft_root, draft_root, {"timeline_version": "185.0.0", "cipher": "plain"} if profile is None else profile,
-                           runtime.CAPCUT)
+    return runtime.Runtime(app, version, version, draft_root, draft_root,
+                           {"timeline_version": "185.0.0"} if profile is None else profile, runtime.CAPCUT)
+
+
+def jianying_rt(draft_root: Path) -> runtime.Runtime:
+    app = fake_app("VideoFusion-macOS.app", "com.lemon.lvpro", "11.7.0")
+    return runtime.Runtime(app, "11.7.0", "11.7.0", draft_root, draft_root, {"timeline_version": "189.0.0"})
 
 
 class ChooseAppTests(unittest.TestCase):
@@ -103,19 +107,17 @@ class ChooseAppTests(unittest.TestCase):
             os.environ["JYR_TARGET"] = "capcut"
             self.assertIs(runtime.choose_app()[0], runtime.CAPCUT)
 
-    def test_capcut_detect_never_touches_the_library_and_learns_unknown_versions(self):
+    def test_capcut_detect_learns_unknown_versions_from_its_drafts(self):
         root = TMP / "detect-root"
         saved_draft(root, "a", "9.9.0", "186.0.0")
         saved_draft(root, "b", "9.9.0", "185.5.0")
         saved_draft(root, "old", "9.4.1", "190.0.0")  # another version's schema must not count
         os.environ.update({"JYR_APP": str(fake_app("CapCut-9.9.app", "com.lemon.lvoverseas", "9.9.0")),
                            "JYR_DRAFT_ROOT": str(root), "JYR_HOME": str(TMP / "home")})
-        with mock.patch.object(runtime, "sha256_file", side_effect=AssertionError("CapCut library hashed")), \
-             mock.patch.object(runtime, "CONFIG_DIR", TMP / "home"):
+        with mock.patch.object(runtime, "CONFIG_DIR", TMP / "home"):
             rt = runtime.detect()
         self.assertTrue(rt.is_capcut)
         self.assertEqual(rt.timeline_version, "186.0.0")
-        self.assertTrue(crypto.plain_mode(rt))
         self.assertEqual(rt.platform["app_source"], "cc")
         self.assertEqual(rt.platform["app_id"], 359289)
 
@@ -138,23 +140,41 @@ class CapCutDraftTests(unittest.TestCase):
         d = planmod.Compiler(rt, cat).compile(p)
         out = writer.write(rt, d, TMP / "build-out")
         raw = (out / "draft_info.json").read_bytes()
-        self.assertTrue(crypto.is_plain_json(raw))
+        self.assertTrue(files.is_plain_json(raw))
         info = json.loads(raw)
         self.assertEqual(info["new_version"], "185.0.0")
         self.assertEqual(info["platform"], rt.platform)
         self.assertEqual(json.loads((out / ".jyr.json").read_text())["app"], "capcut")
-        with mock.patch.object(crypto, "_run", side_effect=AssertionError("codec used for CapCut")):
-            self.assertEqual(writer.read_info(rt, out)["id"], info["id"])
-            r = reader.inspect(rt, out)
-            self.assertEqual(r["timeline_version"], "185.0.0")
-            self.assertIn("你好 CapCut", reader.export_srt(rt, out))
+        self.assertEqual(writer.read_info(rt, out)["id"], info["id"])
+        r = reader.inspect(rt, out)
+        self.assertEqual(r["timeline_version"], "185.0.0")
+        self.assertIn("你好 CapCut", reader.srt_text(rt, out))
 
-    def test_codec_is_refused_for_capcut(self):
-        rt = capcut_rt(TMP / "x")
-        with self.assertRaisesRegex(JyrError, "plaintext"):
-            crypto.ensure_bridge(rt)
-        with self.assertRaisesRegex(JyrError, "not plaintext"):
-            crypto.decrypt_bytes(rt, b"\x00\x01binary")
+    def test_jianying_drafts_are_plain_json_and_its_own_saves_are_not_read(self):
+        rt = jianying_rt(TMP / "jy-root")
+        d = planmod.Compiler(rt, Catalog({"entries": []})).compile(
+            {"name": "jy", "tracks": [{"type": "video", "clips": [{"src": str(TMP / "a.mp4"), "duration": 1}]}]})
+        out = writer.write(rt, d, TMP / "jy-out")
+        for f in ("draft_info.json", "draft_meta_info.json", f"Timelines/{d.id}/draft_info.json"):
+            self.assertTrue(files.is_plain_json((out / f).read_bytes()), f)
+        info = json.loads((out / "draft_info.json").read_bytes())
+        self.assertEqual((info["platform"]["app_id"], info["platform"]["app_source"], info["new_version"]),
+                         (3704, "lv", "189.0.0"))
+        (out / "draft_info.json").write_bytes(b"\x00\x01saved by the app")
+        with self.assertRaisesRegex(JyrError, "does not read"):
+            reader.inspect(rt, out)
+        with self.assertRaisesRegex(JyrError, "not plain JSON"):
+            files.read_json(capcut_rt(TMP / "x"), out / "draft_info.json")
+
+    def test_adapt_unknown_jianying_assumes_newest_known_schema(self):
+        os.environ.pop("JYR_TARGET", None)
+        rt = runtime.Runtime(Path("/x.app"), "12.0.0", "12.0.0", TMP, TMP, {})
+        with mock.patch.object(runtime, "detect", return_value=rt), \
+             mock.patch.object(runtime, "CONFIG_DIR", TMP / "adapt-home"):
+            rep = adapt.adapt()
+            saved = json.loads((TMP / "adapt-home/profiles.json").read_text())
+        self.assertEqual(rep["timeline_version"], "189.0.0")
+        self.assertTrue(saved["12.0.0"]["assumed"])
 
     def test_publish_registers_on_capcut_home_and_refuses_a_jianying_build(self):
         root = TMP / "home-root"
@@ -219,7 +239,7 @@ class CapCutResourceTests(unittest.TestCase):
         self.assertEqual(next(c for c in pack["cards"] if c["name"] == "zh-hans")["path"],
                          "@app/Contents/Resources/Font/SystemFont/zh-hans.ttf")
 
-    def test_pro_resource_warns_and_auto_skips_it(self):
+    def test_paid_resource_warns_and_auto_skips_it(self):
         e = lambda name, vip, seen: {"kind": "transition", "name": name, "resource_id": name, "path": "/x",
                                      "available": True, "seen": seen, "vip": vip, "template": {"name": name}}
         cat = Catalog({"entries": [e("高级", True, 99), e("叠化", False, 1)]})
@@ -232,15 +252,50 @@ class CapCutResourceTests(unittest.TestCase):
         self.assertEqual(comp.warnings, [])
         comp = planmod.Compiler(rt, cat)
         comp.compile(clips("高级"))
-        self.assertTrue(any("Pro" in w for w in comp.warnings))
+        self.assertTrue(any("paid" in w for w in comp.warnings))
 
-    def test_shipped_capcut_pack_is_free_only_and_private_data_free(self):
-        p = ROOT / "jyr/data/resources.capcut.json"
-        blob = p.read_text("utf-8")
-        self.assertNotIn("/Users/", blob)
-        cards = json.loads(blob)["cards"]
-        self.assertTrue(cards)
-        self.assertTrue(all(c.get("vip") is False for c in cards))
+    def test_shipped_packs_are_free_only_and_private_data_free(self):
+        for name in ("resources.json", "resources.capcut.json"):
+            blob = (ROOT / "jyr/data" / name).read_text("utf-8")
+            self.assertNotIn("/Users/", blob)
+            cards = json.loads(blob)["cards"]
+            self.assertTrue(cards, name)
+            self.assertTrue(all(c.get("vip") is False for c in cards), name)
+
+    def test_example_plans_build_from_free_builtin_resources_only(self):
+        media = TMP / "examples/media"
+        subprocess.run(["bash", str(ROOT / "tools/make_fixtures.sh"), str(media)], check=True, capture_output=True)
+        for plan_name, rt in (("showcase.plan.json", jianying_rt(TMP)), ("capcut.plan.json", capcut_rt(TMP))):
+            shutil.copy(ROOT / "examples" / plan_name, TMP / "examples" / plan_name)
+            with mock.patch.object(catalog, "CONFIG_DIR", TMP / "no-home"), \
+                 mock.patch.object(catalog, "CATALOG_PATH", TMP / "no-home/catalog.json"):
+                comp = planmod.Compiler(rt, base_dir=TMP / "examples")
+                comp.compile(planmod.load(TMP / "examples" / plan_name))
+            self.assertEqual(comp.warnings, [], plan_name)
+
+    def test_old_unflagged_scan_is_ignored(self):
+        home_dir = TMP / "legacy-home"
+        home_dir.mkdir()
+        (home_dir / "catalog.json").write_text(json.dumps({"app_version": "11.6.0", "entries": [
+            {"kind": "transition", "name": "旧会员转场", "resource_id": "9", "path": "/x", "seen": 50, "template": {}}]}))
+        with mock.patch.object(catalog, "CATALOG_PATH", home_dir / "catalog.json"):
+            names = [e["name"] for e in Catalog(rt=jianying_rt(TMP)).list("transition")]
+        self.assertNotIn("旧会员转场", names)
+        self.assertIn("叠化", names)
+
+    def test_jianying_pack_build_drops_paid_and_unrecorded(self):
+        kvroot = TMP / "kv"
+        (kvroot / "d").mkdir(parents=True)
+        (kvroot / "d/key_value.json").write_text(json.dumps({**kv("1", "0"), **kv("2", "1")}))
+        card = lambda rid, kind="transition", path="": {"kind": kind, "name": "n" + rid, "resource_id": rid,
+                                                        "path": path, "template": {}, "rank": 1}
+        src = TMP / "pack-src.json"
+        src.write_text(json.dumps({"cards": [card("1"), card("2"), card("3"),
+                                             card("", "font", "@app/Contents/Resources/Font/zh-hans.ttf")]}))
+        out = TMP / "jy-pack.json"
+        subprocess.run([sys.executable, str(ROOT / "tools/build_resource_pack.py"), "--key-values", str(kvroot),
+                        "--out", str(out), str(src)], check=True, capture_output=True)
+        self.assertEqual(sorted(c["name"] for c in json.loads(out.read_text())["cards"]), ["n", "n1"])
 
 
 if __name__ == "__main__":

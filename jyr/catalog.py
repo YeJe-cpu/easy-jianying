@@ -6,18 +6,18 @@ in JianYing's cache. Instead of shipping a fixed list, we scan the user's own
 drafts and remember how JianYing itself recorded each resource. Anything the
 user has applied once in the app (and is still cached) becomes usable here.
 
-CapCut keeps its own resource ids, so it gets its own catalog. Each CapCut
-draft also has a plaintext key_value.json recording, per resource used,
-whether it is a Pro (is_vip) one; entries carry that as `vip`.
+CapCut keeps its own resource ids, so it gets its own catalog. Each draft
+folder (JianYing and CapCut) also has a plain key_value.json recording, per
+resource used, whether it is a paid one (is_vip); entries carry that as `vip`.
+Only free resources are shipped, and `auto` only picks free ones.
 """
 
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 
-from . import crypto
+from . import files
 from .runtime import CONFIG_DIR, JIANYING, App, Runtime
 from .util import JyrError
 
@@ -43,14 +43,14 @@ def catalog_path(rt: Runtime | App | None = None) -> Path:
 
 
 def vip_flags(key_value: dict) -> dict[str, bool]:
-    """key_value.json -> {resource id: is Pro}. Local media entries are skipped."""
+    """key_value.json -> {resource id: paid}. Local media entries are skipped."""
     out = {}
     for v in key_value.values():
         if not isinstance(v, dict) or v.get("materialSubcategory") == "local":
             continue
         rid, flag = str(v.get("materialId") or ""), v.get("is_vip")
         if rid and flag is not None:
-            # once seen as Pro anywhere, it stays Pro
+            # once seen as paid anywhere, it stays paid
             out[rid] = out.get(rid, False) or str(flag) not in ("0", "", "false", "False")
     return out
 
@@ -158,44 +158,46 @@ def _local_fonts(rt: Runtime) -> list[dict]:
 
 
 def scan(rt: Runtime, draft_root: Path | None = None) -> dict:
+    """Learn resources from plain-JSON drafts (CapCut's own drafts, and drafts jyr built).
+    Drafts JianYing saved in its own format are skipped and counted as unreadable."""
     root = Path(draft_root or rt.draft_root)
-    files = sorted(root.glob("*/draft_info.json"))
+    paths = sorted(root.glob("*/draft_info.json"))
     found: dict[tuple, dict] = {}
     vip: dict[str, bool] = {}
-    with tempfile.TemporaryDirectory(prefix="jyr-scan-") as tmp:
-        decoded = crypto.decrypt_many(rt, files, Path(tmp))
-        bad = 0
-        for src, dst in decoded.items():
-            if dst is None:
-                bad += 1
-                continue
-            try:
-                _harvest(json.loads(dst.read_text("utf-8")), found, "CapCut字体" if rt.is_capcut else "剪映字体")
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                bad += 1
-            kv = src.parent / "key_value.json"
-            if kv.is_file():
-                try:
-                    for rid, pro in vip_flags(json.loads(kv.read_text("utf-8"))).items():
-                        vip[rid] = vip.get(rid, False) or pro
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    pass
+    bad = 0
+    for src, info in files.read_many(paths).items():
+        if info is None:
+            bad += 1
+            continue
+        _harvest(info, found, "CapCut字体" if rt.is_capcut else "剪映字体")
+        for rid, pro in key_value_flags(src.parent).items():
+            vip[rid] = vip.get(rid, False) or pro
     entries = list(found.values())
     seen_paths = {e["path"] for e in entries if e["kind"] == "font"}
     entries += [f for f in _local_fonts(rt) if f["path"] not in seen_paths]
     for e in entries:
         e["available"] = bool(e["path"]) and Path(e["path"]).exists()
         e.pop("slot", None) if e["kind"] == "font" else None
-        if rt.is_capcut:
-            # True = Pro, False = free, None = no record. Fonts bundled in the app are free.
-            e["vip"] = vip.get(e["resource_id"]) if e["resource_id"] else (False if e["category"] == "内置字体" else None)
+        # True = paid (会员 / Pro), False = free, None = no record. Font files on disk without an id are free.
+        e["vip"] = vip.get(e["resource_id"]) if e["resource_id"] else (False if e["kind"] == "font" else None)
     entries.sort(key=lambda e: (e["kind"], -e["seen"], e["name"]))
-    cat = {"app": rt.app.key, "app_version": rt.version, "drafts_scanned": len(files), "drafts_unreadable": bad,
+    cat = {"app": rt.app.key, "app_version": rt.version, "drafts_scanned": len(paths), "drafts_unreadable": bad,
            "entries": entries}
     out = catalog_path(rt)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(cat, ensure_ascii=False, indent=1))
     return cat
+
+
+def key_value_flags(folder: Path) -> dict[str, bool]:
+    """The plain key_value.json both apps keep in each draft folder -> {resource id: paid}."""
+    kv = Path(folder) / "key_value.json"
+    if not kv.is_file():
+        return {}
+    try:
+        return vip_flags(json.loads(kv.read_text("utf-8")))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return {}
 
 
 PACK_PATH = Path(__file__).with_name("data") / "resources.json"
@@ -206,11 +208,14 @@ def pack_path(app: App = JIANYING) -> Path:
 
 
 def load(rt: Runtime | App | None = None) -> dict:
-    """The user's own scan, if any (empty on JianYing 11.7+, whose drafts we cannot read)."""
+    """The user's own scan, if any (CapCut; for JianYing usually empty)."""
     p = catalog_path(rt)
     if not p.is_file():
         return {"entries": []}
-    return json.loads(p.read_text())
+    data = json.loads(p.read_text())
+    if "app" not in data:
+        return {"entries": []}  # a scan from jyr 0.1 (no free/paid flags); run `catalog scan` again
+    return data
 
 
 def _resolve(v, app: Path | None, user_data: Path):
@@ -227,9 +232,9 @@ def _resolve(v, app: Path | None, user_data: Path):
 
 
 def builtin_cards(target: App = JIANYING) -> list[dict]:
-    """Resource cards shipped with jyr. JianYing finds resources by id and downloads
-    missing effect files itself, so a card works even if this machine never used it.
-    The CapCut pack holds only resources CapCut itself marked free."""
+    """Resource cards shipped with jyr: free resources only (is_vip 0 in the app's own
+    key_value.json, or fonts bundled with the app). JianYing finds resources by id and
+    downloads missing effect files itself, so a card works even if this machine never used it."""
     pack = pack_path(target)
     if not pack.is_file():
         return []
@@ -247,6 +252,7 @@ def builtin_cards(target: App = JIANYING) -> list[dict]:
         on_disk = bool(e.get("path")) and Path(e["path"]).exists()
         # Bundled app fonts must exist; everything else JianYing fetches by id.
         e["available"] = on_disk or not str(c.get("path", "")).startswith("@app/")
+        e["vip"] = False  # the pack holds free resources only
         cards.append(e)
     return cards
 
@@ -274,8 +280,7 @@ class Catalog:
             if self.app is not JIANYING:
                 raise JyrError(f"no {kind} resources known for {self.app.label}; apply one in {self.app.label}, "
                                f"save, quit, then run `jyr --app {self.app.key} catalog scan`")
-            raise JyrError(f"no {kind} resources known; jyr ships common ones — reinstall, or apply one in "
-                           "JianYing ≤11.6 and run `jyr catalog scan`")
+            raise JyrError(f"no free {kind} resources ship with jyr; add it in JianYing by hand after opening the draft")
         key = str(name).strip()
         for test in (lambda e: e["resource_id"] == key, lambda e: e["name"] == key,
                      lambda e: e["name"].lower() == key.lower(), lambda e: key.lower() in e["name"].lower()):
@@ -292,10 +297,10 @@ class Catalog:
         if kind == "font":
             from .recipes.fonts import pick
             return pick(self, spec.split(":", 1)[1] if ":" in spec else "title")
-        # 'auto' never picks a CapCut Pro resource
-        usable = sorted((e for e in pool if e.get("available") and not e.get("vip")), key=lambda e: -e.get("seen", 0))
+        # 'auto' never picks a paid resource
+        usable = sorted((e for e in pool if e.get("available") and e.get("vip") is False), key=lambda e: -e.get("seen", 0))
         if not usable:
-            raise JyrError(f"no available {kind} for 'auto'")
+            raise JyrError(f"no free {kind} known for 'auto'")
         return usable[0]
 
     def list(self, kind: str | None = None) -> list[dict]:

@@ -60,7 +60,7 @@ class Compiler:
     def find(self, kind: str, name: str, **kw) -> dict:
         e = self.catalog.find(kind, name, **kw)
         if e.get("vip"):
-            self.warnings.append(f"{kind} {e['name']!r} is a CapCut Pro resource; exporting may need Pro")
+            self.warnings.append(f"{kind} {e['name']!r} is a paid resource (会员 / Pro); the app applies its own membership rules to it")
         return e
 
     def compile(self, plan: dict) -> Draft:

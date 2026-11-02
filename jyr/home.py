@@ -97,7 +97,6 @@ def publish(rt: Runtime, built: Path, name: str | None = None) -> dict:
 
 def _fix_paths(rt: Runtime, folder: Path) -> None:
     """The meta file records its own folder; rewrite it for the final location."""
-    from . import crypto
     meta = read_meta(rt, folder)
     meta["draft_id"] = new_id()  # each published copy is its own draft
     old = meta.get("draft_fold_path", "")
@@ -107,13 +106,13 @@ def _fix_paths(rt: Runtime, folder: Path) -> None:
     raw = dump(meta)
     if old and old != str(folder):
         raw = raw.replace(json.dumps(old, ensure_ascii=False)[1:-1], json.dumps(str(folder), ensure_ascii=False)[1:-1])
-    atomic_write(folder / "draft_meta_info.json", crypto.seal(rt, raw.encode()))
+    atomic_write(folder / "draft_meta_info.json", raw)
     # Packed media lives inside the draft; point materials at the new place.
     if old and old != str(folder):
-        info_raw = crypto.decrypt_bytes(rt, (folder / "draft_info.json").read_bytes()).decode()
+        info_raw = (folder / "draft_info.json").read_text("utf-8")
         o = json.dumps(old, ensure_ascii=False)[1:-1]
         if o in info_raw:
-            enc = crypto.seal(rt, info_raw.replace(o, json.dumps(str(folder), ensure_ascii=False)[1:-1]).encode())
+            enc = info_raw.replace(o, json.dumps(str(folder), ensure_ascii=False)[1:-1])
             tl = json.loads(info_raw)["id"]
             for p in (folder / "draft_info.json", folder / "draft_info.json.bak",
                       folder / "Timelines" / tl / "draft_info.json", folder / "Timelines" / tl / "draft_info.json.bak"):

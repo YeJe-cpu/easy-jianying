@@ -59,4 +59,4 @@
 
 资源名查询：`jyr catalog list transition|mask|effect|filter|animation|font|sticker`；CapCut 加 `--app capcut`，`--free` 只看免费的。
 
-CapCut 的资源有免费 / Pro 之分（来自 CapCut 自己在草稿 `key_value.json` 里记的 `is_vip`）：`"auto"` 只挑免费的；点名用了 Pro 资源，`build` 的 `warnings` 里会提醒“导出可能需要 Pro”。没有记录的资源算“未知”，不会进内置包。
+**资源只用免费的。** 内置清单只收剪映 / CapCut 自己在草稿 `key_value.json` 里记为免费（`is_vip` 0）的资源，加上 App 安装包自带的字体。`"auto"` 只挑免费的；点名用了会员 / Pro 资源（来自你自己 `catalog scan` 的结果），`build` 的 `warnings` 里会提醒。剪映内置清单里没有蒙版和文字动画——需要的话在剪映里手动加，`mask` / `anim` 字段只在清单里有对应资源时可用。

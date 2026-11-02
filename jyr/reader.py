@@ -1,4 +1,4 @@
-"""Read existing drafts: find them, summarise them, export subtitles."""
+"""Read plain-JSON drafts (CapCut's, or ones jyr built): find, summarise, subtitles as SRT."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ def inspect(rt: Runtime, folder: Path) -> dict:
             "missing_media": sorted(missing), "resources_used": {k: sorted(v) for k, v in used.items()}}
 
 
-def export_srt(rt: Runtime, folder: Path, which: str = "auto") -> str:
+def srt_text(rt: Runtime, folder: Path, which: str = "auto") -> str:
     """which: auto (subtitle tracks if any, else all text), subtitle, all"""
     info = read_info(rt, folder)
     mats = materials_by_id(info)

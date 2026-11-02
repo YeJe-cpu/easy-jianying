@@ -24,8 +24,8 @@ def candidates(cat: Catalog, role: str) -> list[dict]:
         raise ValueError(f"unknown font role {role!r}; use {list(STYLE_HINTS)}")
     scored = []
     for e in cat.list("font"):
-        if not e.get("available"):
-            continue
+        if not e.get("available") or e.get("vip") is not False:
+            continue  # free fonts only
         name = e["name"] + " " + e["path"].rsplit("/", 1)[-1]
         style = sum(1 for h in hints if h.lower() in name.lower())
         habit = e.get("roles", {}).get(role, 0)
@@ -44,5 +44,5 @@ def candidates(cat: Catalog, role: str) -> list[dict]:
 def pick(cat: Catalog, role: str) -> dict:
     c = candidates(cat, role)
     if not c:
-        return cat.find("font", "zh-hans")  # JianYing's built-in system font
+        return cat.find("font", "zh-hans")  # the app's built-in system font
     return c[0]

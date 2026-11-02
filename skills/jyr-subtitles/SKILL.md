@@ -14,7 +14,7 @@ jyr subtitles /abs/口播.mp4 --into "已有草稿名" --name "已有草稿名-�
 jyr edit "草稿名" --add-srt /abs/a.srt
 ```
 - 识别：本地 faster-whisper（`--model small` 默认，`medium` 更准更慢；Intel i5 上 small ≈ 2 倍实时）。首次会下载模型。
-- 用别家 ASR（火山/讯飞等）：导出 `{"words":[{"start":秒,"end":秒,"text":"字"}]}`，用 `--words FILE` 传入，跳过本地识别。
+- 用别家 ASR（火山/讯飞等）：输出 `{"words":[{"start":秒,"end":秒,"text":"字"}]}`，用 `--words FILE` 传入，跳过本地识别。
 - 每条字幕默认 ≤16 字（`--max-chars`），按标点、停顿、4 秒上限断句，去掉句末标点。
 - 生成的是剪映原生"识别字幕"（文字轨 flag=1 + 逐字时间），在剪映里能整体改样式。
 - 识别有错字（如"爆款"听成"报款"）：先 `jyr transcribe` 看文本，再用 `jyr edit --replace "报款=>爆款"` 批量改。

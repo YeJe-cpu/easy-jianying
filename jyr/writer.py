@@ -11,12 +11,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from . import crypto
+from . import files
 from .draft import Draft
 from .runtime import Runtime
 from .util import JyrError, atomic_write, dump, new_id, now_us
-
-ENCRYPTED = ("draft_info.json", "draft_meta_info.json")
 
 
 def _meta(draft: Draft, folder: Path, draft_id: str, created: int) -> dict:
@@ -109,7 +107,6 @@ def write(rt: Runtime, draft: Draft, folder: Path, pack: bool = False, overwrite
     draft_id = new_id()
     info = draft.to_json(platform=rt.platform)
     info_bytes = dump(info).encode()
-    enc_info = crypto.seal(rt, info_bytes)
 
     meta = _meta(draft, folder, draft_id, created)
     if pack:
@@ -117,12 +114,11 @@ def write(rt: Runtime, draft: Draft, folder: Path, pack: bool = False, overwrite
             for m in draft.local_media:
                 if m["id"] == v["id"] and m.get("file_path_override"):
                     v["file_Path"] = m["file_path_override"]
-    enc_meta = crypto.seal(rt, dump(meta).encode())
 
     tl_dir = folder / "Timelines" / draft.id
     for base in (folder, tl_dir):
-        atomic_write(base / "draft_info.json", enc_info)
-        atomic_write(base / "draft_info.json.bak", enc_info)
+        atomic_write(base / "draft_info.json", info_bytes)
+        atomic_write(base / "draft_info.json.bak", info_bytes)
     project = {"config": {"color_space": -1, "hdr_vivid": False, "mixed_track_mode_on": False,
                           "render_index_track_mode_on": False, "use_float_render": False},
                "create_time": created, "id": new_id(), "main_timeline_id": draft.id,
@@ -131,7 +127,7 @@ def write(rt: Runtime, draft: Draft, folder: Path, pack: bool = False, overwrite
                "update_time": created, "version": 0}
     atomic_write(folder / "Timelines/project.json", dump(project))
     atomic_write(folder / "Timelines/project.json.bak", dump(project))
-    atomic_write(folder / "draft_meta_info.json", enc_meta)
+    atomic_write(folder / "draft_meta_info.json", dump(meta))
     atomic_write(folder / "timeline_layout.json", dump(
         {"activeTimeline": draft.id, "dockItems": [{"dockIndex": 0, "ratio": 1, "timelineIds": [draft.id],
                                                     "timelineNames": ["时间线01"]}], "layoutOrientation": 1}))
@@ -157,8 +153,8 @@ def write(rt: Runtime, draft: Draft, folder: Path, pack: bool = False, overwrite
 
 
 def read_info(rt: Runtime, folder: Path) -> dict:
-    return json.loads(crypto.decrypt_bytes(rt, (Path(folder) / "draft_info.json").read_bytes()))
+    return files.read_json(rt, Path(folder) / "draft_info.json")
 
 
 def read_meta(rt: Runtime, folder: Path) -> dict:
-    return json.loads(crypto.decrypt_bytes(rt, (Path(folder) / "draft_meta_info.json").read_bytes()))
+    return files.read_json(rt, Path(folder) / "draft_meta_info.json")

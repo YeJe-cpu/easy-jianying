@@ -13,7 +13,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from . import crypto, home
+from . import files, home
 from .draft import Draft
 from .reader import materials_by_id, text_of
 from .runtime import Runtime, app_running
@@ -42,8 +42,8 @@ class Session:
         shutil.copytree(self.src, self.work, ignore=lambda d, names: [n for n in names if n in SKIP])
         for tmp in self.work.rglob("template*.tmp"):
             tmp.unlink()  # crash-recovery copies; they would shadow our edit
-        self.info = json.loads(crypto.decrypt_bytes(rt, (self.work / "draft_info.json").read_bytes()))
-        self.meta = json.loads(crypto.decrypt_bytes(rt, (self.work / "draft_meta_info.json").read_bytes()))
+        self.info = files.read_json(rt, self.work / "draft_info.json")
+        self.meta = files.read_json(rt, self.work / "draft_meta_info.json")
         self.log: list[str] = []
 
     # ---------------- ops ----------------
@@ -187,11 +187,11 @@ class Session:
             fn(**args)
 
     def save(self) -> Path:
-        enc = crypto.seal(self.rt, dump(self.info).encode())
+        enc = dump(self.info)
         for f in _info_files(self.work, self.info["id"]):
             atomic_write(f, enc)
         self.meta["tm_duration"] = self.info.get("duration", self.meta.get("tm_duration", 0))
-        atomic_write(self.work / "draft_meta_info.json", crypto.seal(self.rt, dump(self.meta).encode()))
+        atomic_write(self.work / "draft_meta_info.json", dump(self.meta))
         (self.work / ".jyr.json").write_text(json.dumps({"name": self.work.name, "edited_from": str(self.src),
                                                          "ops": self.log}, ensure_ascii=False, indent=1))
         return self.work

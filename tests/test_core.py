@@ -42,15 +42,16 @@ def tearDownModule():
 def fake_catalog():
     def e(kind, name, **kw):
         return {"kind": kind, "name": name, "resource_id": str(abs(hash(name)) % 10**18), "path": "/x",
-                "available": True, "seen": kw.pop("seen", 1), "template": {"name": name, "path": "/x"}, **kw}
+                "available": True, "seen": kw.pop("seen", 1), "vip": kw.pop("vip", False),
+                "template": {"name": name, "path": "/x"}, **kw}
     return Catalog({"entries": [
-        e("transition", "叠化", default_duration_us=500000, seen=2), e("transition", "推近", seen=9),
+        e("transition", "叠化", default_duration_us=500000, seen=2), e("transition", "推近", seen=9), e("transition", "会员转场", seen=99, vip=True),
         e("mask", "圆形", shape="circle"), e("animation", "渐显", slot="in", target="text"),
         e("effect", "模糊"), e("font", "某体", roles={"title": 3}),
     ]})
 
 
-RT = Runtime(Path("/Applications/x.app"), "11.6.0", "11.6.0", Path("/x"), "0" * 64, Path("/tmp"), Path("/tmp"),
+RT = Runtime(Path("/Applications/x.app"), "11.7.0", "11.7.0", Path("/tmp"), Path("/tmp"),
              {"timeline_version": "189.0.0"})
 
 
@@ -112,7 +113,7 @@ class PlanTests(unittest.TestCase):
         props = [k["property_type"] for k in d.tracks[0].segments[0]["common_keyframes"]]
         self.assertEqual(props, ["KFTypeScaleX", "KFTypeScaleY"])
 
-    def test_auto_resources_pick_most_used(self):
+    def test_auto_resources_pick_most_used_free_one(self):
         d = compile_({"tracks": [{"type": "video", "clips": [
             {"src": str(TMP / "a.mp4"), "duration": 2, "transition": "auto"}, {"src": str(TMP / "a.mp4"), "duration": 2}]}]})
         self.assertEqual(d.materials["transitions"][0]["name"], "推近")
